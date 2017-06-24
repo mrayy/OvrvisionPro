@@ -50,6 +50,8 @@
 #endif
 #endif
 
+#include "IUnityInterface.h"
+
 /////////// VARS AND DEFS ///////////
 
 //Exporter
@@ -60,25 +62,6 @@
 #else
 #define CSHARP_EXPORT
 #endif
-
-// Graphics device identifiers in Unity
-enum GfxDeviceRenderer
-{
-	kGfxRendererOpenGL = 0, // Legacy OpenGL
-	kGfxRendererD3D9 = 1, // Direct3D 9
-	kGfxRendererD3D11 = 2, // Direct3D 11
-	kGfxRendererGCM = 3, // PlayStation 3
-	kGfxRendererNull = 4, // "null" device (used in batch mode)
-	kGfxRendererXenon = 6, // Xbox 360
-	kGfxRendererOpenGLES20 = 8, // OpenGL ES 2.0
-	kGfxRendererOpenGLES30 = 11, // OpenGL ES 3.0
-	kGfxRendererGXM = 12, // PlayStation Vita
-	kGfxRendererPS4 = 13, // PlayStation 4
-	kGfxRendererXboxOne = 14, // Xbox One        
-	kGfxRendererMetal = 16, // iOS Metal
-	kGfxRendererOpenGLCore = 17, // OpenGL core
-	kGfxRendererD3D12 = 18, // Direct3D 12
-};
 
 // Event types for UnitySetGraphicsDevice
 enum GfxDeviceEventType {
@@ -97,67 +80,10 @@ extern "C" {
 
 //Global var
 float g_Time;
-int g_DeviceType = -1;
-
-#if SUPPORT_D3D12
-ID3D12Device* g_D3D12Device = NULL;
-#endif
-#if SUPPORT_D3D11
-ID3D11Device* g_D3D11Device = NULL;
-#endif
-#if SUPPORT_D3D9
-IDirect3DDevice9* g_D3D9Device = NULL;
-#endif
 
 void CSHARP_EXPORT SetTimeFromUnity(float t)
 {
 	g_Time = t;
-}
-
-void CSHARP_EXPORT UnitySetGraphicsDevice(void* device, int deviceType, int eventType)
-{
-	// Set device type to -1, i.e. "not recognized by our plugin"
-	g_DeviceType = -1;
-
-#if SUPPORT_D3D9
-	// D3D9 device, remember device pointer and device type.
-	// The pointer we get is IDirect3DDevice9.
-	if (deviceType == kGfxRendererD3D9)
-	{
-		g_DeviceType = deviceType;
-		g_D3D9Device = (IDirect3DDevice9*)device;
-	}
-#endif
-
-#if SUPPORT_D3D11
-	// D3D11 device, remember device pointer and device type.
-	// The pointer we get is ID3D11Device.
-	if (deviceType == kGfxRendererD3D11)
-	{
-		g_DeviceType = deviceType;
-		g_D3D11Device = (ID3D11Device*)device;
-	}
-#endif
-
-#if SUPPORT_D3D12
-	// D3D11 device, remember device pointer and device type.
-	// The pointer we get is ID3D11Device.
-	if (deviceType == kGfxRendererD3D12)
-	{
-		g_DeviceType = deviceType;
-
-	}
-#endif
-
-#if SUPPORT_OPENGL
-	// If we've got an OpenGL device, remember device type. There's no OpenGL
-	// "device pointer" to remember since OpenGL always operates on a currently set
-	// global context.
-	if (deviceType == kGfxRendererOpenGL || deviceType == kGfxRendererOpenGLCore)
-	{
-		g_DeviceType = deviceType;
-	}
-#endif
 }
 
 #ifdef __cplusplus

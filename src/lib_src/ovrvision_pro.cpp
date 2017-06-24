@@ -42,7 +42,7 @@ namespace OVR
 {
 
 //Constructor/Destructor
-OvrvisionPro::OvrvisionPro()
+OvrvisionPro::OvrvisionPro() 
 {
 #if defined(WIN32)
 	m_pODS = new OvrvisionDirectShow();
@@ -51,6 +51,8 @@ OvrvisionPro::OvrvisionPro()
 #elif defined(LINUX)
 	m_pOV4L = new OvrvisionVideo4Linux();
 #endif
+
+	ovrset = new OvrvisionSetting(this);
 
 	m_pFrame = NULL;
 	m_pPixels[0] = m_pPixels[1] = NULL;
@@ -65,13 +67,14 @@ OvrvisionPro::OvrvisionPro()
 	m_rightgap[0] = m_rightgap[1] = m_rightgap[2] = 0.0f;
 
 	m_isOpen = false;
+	m_isMemory = false;
 	m_isCameraSync = false;
+	m_isOnlyGrabber = false;
 }
 
 OvrvisionPro::~OvrvisionPro()
 {
 	Close();
-
 #if defined(WIN32)
 	delete m_pODS;
 #elif defined(MACOSX)
@@ -79,11 +82,12 @@ OvrvisionPro::~OvrvisionPro()
 #elif defined(LINUX)
 	delete m_pOV4L;
 #endif
+	delete ovrset;
 }
 
 //Initialize
 //Open the Ovrvision
-int OvrvisionPro::Open(int locationID, OVR::Camprop prop, int deviceType, void *pDevice)
+int OvrvisionPro::Open(int locationID, OVR::Camprop prop, int deviceType, void *pDevice, bool onlyGrabber)
 {
 	int objs = 0;
 	int challenge;
@@ -188,38 +192,43 @@ int OvrvisionPro::Open(int locationID, OVR::Camprop prop, int deviceType, void *
 		return 0;
 
 	m_pFrame = new ushort[cam_width*cam_height];
-	m_pPixels[0] = new byte[cam_width*cam_height*OV_PIXELSIZE_RGB];
-	m_pPixels[1] = new byte[cam_width*cam_height*OV_PIXELSIZE_RGB];
 
-	//Initialize OpenCL system
-	try {
-		if (deviceType == 2 && pDevice != NULL)
-		{
-			m_pOpenCL = new OvrvisionProOpenCL(cam_width, cam_height, D3D11, pDevice); // When use D3D11 sharing texture
-		}
-		else if (deviceType == 0)
-		{
-			m_pOpenCL = new OvrvisionProOpenCL(cam_width, cam_height, OPENGL);    // When use OpenGL sharing texture
-		}
-		else
-		{
-			m_pOpenCL = new OvrvisionProOpenCL(cam_width, cam_height);
-		}
-    }
-	catch (std::exception ex)
+	m_isOnlyGrabber = onlyGrabber;
+	if (!onlyGrabber)
 	{
+		m_pPixels[0] = new byte[cam_width*cam_height*OV_PIXELSIZE_RGB];
+		m_pPixels[1] = new byte[cam_width*cam_height*OV_PIXELSIZE_RGB];
+
+		//Initialize OpenCL system
+		try {
+			if (deviceType == 2 && pDevice != NULL)
+			{
+				m_pOpenCL = new OvrvisionProOpenCL(cam_width, cam_height, D3D11, pDevice); // When use D3D11 sharing texture
+			}
+			else if (deviceType == 0)
+			{
+				m_pOpenCL = new OvrvisionProOpenCL(cam_width, cam_height, OPENGL);    // When use OpenGL sharing texture
+			}
+			else
+			{
+				m_pOpenCL = new OvrvisionProOpenCL(cam_width, cam_height);
+			}
+		}
+		catch (std::exception ex)
+		{
 #if defined(WIN32)
-		::MessageBox(NULL, TEXT("This OvrvisionSDK is the GPU necessity which is supporting OpenCL1.2 or more."), TEXT("OpenCL Error!"), MB_ICONERROR | MB_OK);
+			::MessageBox(NULL, TEXT("This OvrvisionSDK is the GPU necessity which is supporting OpenCL1.2 or more."), TEXT("OpenCL Error!"), MB_ICONERROR | MB_OK);
 #elif defined(MACOSX)
-		NSLog(@"This OvrvisionSDK is the GPU necessity which is supporting OpenCL1.2 or more.");
+			NSLog(@"This OvrvisionSDK is the GPU necessity which is supporting OpenCL1.2 or more.");
 #elif defined(LINUX)
-		printf("This OvrvisionSDK is the GPU necessity which is supporting OpenCL1.2 or more.\n");
+			printf("This OvrvisionSDK is the GPU necessity which is supporting OpenCL1.2 or more.\n");
 #endif
-		return 0;
+			return 0;
+		}
 	}
 	//Opened
 	m_isOpen = true;
-
+	m_isMemory = false;
 #if defined(WIN32)
 	m_pODS->StartTransfer();
 #elif defined(MACOSX)
@@ -238,20 +247,145 @@ int OvrvisionPro::Open(int locationID, OVR::Camprop prop, int deviceType, void *
     
 	return objs;
 }
+int OvrvisionPro::OpenMemory(OVR::Camprop prop, int deviceType, void *pDevice)
+{
+	int challenge;
+
+	int cam_width;
+	int cam_height;
+	int cam_framerate;
+	float cam_expo_f;
+
+	if (m_isOpen)
+		return 2;
+
+	switch (prop) {
+	case OV_CAM5MP_FULL:
+		cam_width = 2560;
+		cam_height = 1920;
+		cam_framerate = 15;
+		cam_expo_f = 480000.00f;
+		break;
+	case OV_CAM5MP_FHD:
+		cam_width = 1920;
+		cam_height = 1080;
+		cam_framerate = 30;
+		cam_expo_f = 570579.49f;
+		break;
+	case OV_CAMHD_FULL:
+		cam_width = 1280;
+		cam_height = 960;
+		cam_framerate = 45;
+		cam_expo_f = 720112.52f;
+		break;
+	case OV_CAMVR_FULL:
+		cam_width = 960;
+		cam_height = 950;
+		cam_framerate = 60;
+		cam_expo_f = 937156.80f;
+		break;
+	case OV_CAMVR_WIDE:
+		cam_width = 1280;
+		cam_height = 800;
+		cam_framerate = 60;
+		cam_expo_f = 783273.84f;
+		break;
+	case OV_CAMVR_VGA:
+		cam_width = 640;
+		cam_height = 480;
+		cam_framerate = 90;
+		cam_expo_f = 720112.52f;
+		break;
+	case OV_CAMVR_QVGA:
+		cam_width = 320;
+		cam_height = 240;
+		cam_framerate = 120;
+		cam_expo_f = 491520.00f;
+		break;
+	case OV_CAM20HD_FULL:
+		cam_width = 1280;
+		cam_height = 960;
+		cam_framerate = 15;
+		cam_expo_f = 240000.00f;
+		break;
+	case OV_CAM20VR_VGA:
+		cam_width = 640;
+		cam_height = 480;
+		cam_framerate = 30;
+		cam_expo_f = 240000.00f;
+		break;
+	default:
+		cam_width = 960;
+		cam_height = 950;
+		cam_framerate = 60;
+		cam_expo_f = 937156.80f;
+		return 0;
+	};
+
+
+	m_pFrame = new ushort[cam_width*cam_height];
+	m_pPixels[0] = new byte[cam_width*cam_height*OV_PIXELSIZE_RGB];
+	m_pPixels[1] = new byte[cam_width*cam_height*OV_PIXELSIZE_RGB];
+
+	//Initialize OpenCL system
+	try {
+		if (deviceType == 2 && pDevice != NULL)
+		{
+			m_pOpenCL = new OvrvisionProOpenCL(cam_width, cam_height, D3D11, pDevice); // When use D3D11 sharing texture
+		}
+		else if (deviceType == 0)
+		{
+			m_pOpenCL = new OvrvisionProOpenCL(cam_width, cam_height, OPENGL);    // When use OpenGL sharing texture
+		}
+		else
+		{
+			m_pOpenCL = new OvrvisionProOpenCL(cam_width, cam_height);
+		}
+	}
+	catch (std::exception ex)
+	{
+#if defined(WIN32)
+		::MessageBox(NULL, TEXT("This OvrvisionSDK is the GPU necessity which is supporting OpenCL1.2 or more."), TEXT("OpenCL Error!"), MB_ICONERROR | MB_OK);
+#elif defined(MACOSX)
+		NSLog(@"This OvrvisionSDK is the GPU necessity which is supporting OpenCL1.2 or more.");
+#elif defined(LINUX)
+		printf("This OvrvisionSDK is the GPU necessity which is supporting OpenCL1.2 or more.\n");
+#endif
+		return 0;
+	}
+
+	//Opened
+	m_isOpen = true;
+	m_isMemory = true;
+
+
+	m_width = cam_width;
+	m_height = cam_height;
+	m_framerate = cam_framerate;
+	m_expo_f = cam_expo_f;
+
+	//Initialize Camera system
+	InitCameraSetting();
+
+	return 1;
+}
 
 //Close the Ovrvision
 void OvrvisionPro::Close()
 {
 	if (!m_isOpen)
 		return;
-	
+
+
+	if(!m_isMemory){
 #if defined(WIN32)
-	m_pODS->DeleteDevice();
+		m_pODS->DeleteDevice();
 #elif defined(MACOSX)
-	[m_pOAV deleteDevice];
+		[m_pOAV deleteDevice];
 #elif defined(LINUX)
-	m_pOV4L->DeleteDevice();
+		m_pOV4L->DeleteDevice();
 #endif
+	}
 	if (m_pOpenCL) {
 		delete m_pOpenCL;
 		m_pOpenCL = NULL;
@@ -267,17 +401,22 @@ void OvrvisionPro::Close()
 	}
 
 	m_isOpen = false;
+	m_isMemory = false;
 }
 
 // Get OpenCL extensions of GPU
 int OvrvisionPro::OpenCLExtensions(EXTENSION_CALLBACK callback, void *item)
 {
+	if (m_isOnlyGrabber)
+		return 0;
 	return m_pOpenCL->DeviceExtensions(callback, item);
 }
 
 // Create textures(OpenGL)
 void OvrvisionPro::CreateSkinTextures(int width, int height, unsigned int left, unsigned int right)
 {
+	if (m_isOnlyGrabber)
+		return ;
 	m_pOpenCL->CreateSkinTextures(width, height, (TEXTURE)left, (TEXTURE)right);
 }
     
@@ -285,6 +424,8 @@ void OvrvisionPro::CreateSkinTextures(int width, int height, unsigned int left, 
 // Create textures(D3D11)
 void OvrvisionPro::CreateSkinTextures(int width, int height, void* left, void* right)
 {
+	if (m_isOnlyGrabber)
+		return ;
 	m_pOpenCL->CreateSkinTextures(width, height, (TEXTURE)left, (TEXTURE)right);
 }
 #endif
@@ -292,12 +433,18 @@ void OvrvisionPro::CreateSkinTextures(int width, int height, void* left, void* r
 // Update textures(OpenGL)
 void OvrvisionPro::UpdateSkinTextures(unsigned int left, unsigned int right)
 {
+	if (m_isOnlyGrabber)
+		return;
+	if (m_isOnlyGrabber)
+		return ;
 	m_pOpenCL->UpdateSkinTextures((TEXTURE)left, (TEXTURE)right);
 }
 
 // Update scaled image texture
 void OvrvisionPro::UpdateImageTextures(unsigned int left, unsigned int right)
 {
+	if (m_isOnlyGrabber)
+		return;
 	m_pOpenCL->UpdateImageTextures((TEXTURE)left, (TEXTURE)right);
 }
 
@@ -305,12 +452,16 @@ void OvrvisionPro::UpdateImageTextures(unsigned int left, unsigned int right)
 // Update textures(D3D11)
 void OvrvisionPro::UpdateSkinTextures(void* left, void* right)
 {
+	if (m_isOnlyGrabber)
+		return;
 	m_pOpenCL->UpdateSkinTextures((TEXTURE)left, (TEXTURE)right);
 }
 
 // Update scaled image texture
 void OvrvisionPro::UpdateImageTextures(void* left,void* right)
 {
+	if (m_isOnlyGrabber)
+		return;
 	m_pOpenCL->UpdateImageTextures((TEXTURE)left, (TEXTURE)right);
 }
 #endif
@@ -318,25 +469,31 @@ void OvrvisionPro::UpdateImageTextures(void* left,void* right)
 // Grayscaled images 1/2 scaled
 void OvrvisionPro::GrayscaleHalf(unsigned char *left, unsigned char *right)
 {
+	if (m_isOnlyGrabber)
+		return;
 	return m_pOpenCL->Grayscale(left, right, HALF);
 }
 
 // 1/4 scaled
 void OvrvisionPro::GrayscaleFourth(unsigned char *left, unsigned char *right)
 {
+	if (m_isOnlyGrabber)
+		return;
 	return m_pOpenCL->Grayscale(left, right, FOURTH);
 }
 
 // 1/8 scaled
 void OvrvisionPro::GrayscaleEighth(unsigned char *left, unsigned char *right)
 {
+	if (m_isOnlyGrabber)
+		return;
 	return m_pOpenCL->Grayscale(left, right, EIGHTH);
 }
 
 // Capture frame
 void OvrvisionPro::Capture(OVR::Camqt qt)
-{
-	if (!m_isOpen)
+	{
+		if (!m_isOpen || m_isMemory)
 		return;
 
 	if (qt == OV_CAMQT_NONE)
@@ -350,22 +507,36 @@ void OvrvisionPro::Capture(OVR::Camqt qt)
 	if (m_pOV4L->GetBayer16Image((uchar *)m_pFrame, !m_isCameraSync) == RESULT_OK)
 #endif
 	{
-		if (qt == OV_CAMQT_DMSRMP)
-			m_pOpenCL->DemosaicRemap(m_pFrame);	//OpenCL
-		else if (qt == OV_CAMQT_DMS)
-			m_pOpenCL->Demosaic(m_pFrame);		//OpenCL
+		if (!m_isOnlyGrabber)
+		{
+			if (qt == OV_CAMQT_DMSRMP)
+				m_pOpenCL->DemosaicRemap(m_pFrame);	//OpenCL
+			else if (qt == OV_CAMQT_DMS)
+				m_pOpenCL->Demosaic(m_pFrame);		//OpenCL
+		}
 	}
+}
+bool OvrvisionPro::CaptureImage()
+{
+	if (!m_isOpen || m_isMemory)
+		return false;
+
+	return m_pODS->GetBayer16Image((uchar *)m_pFrame, !m_isCameraSync) == RESULT_OK;
 }
 
 //Get camera image region of interest
 void  OvrvisionPro::GetStereoImageBGRA(unsigned char* pLeft, unsigned char* pRight, ROI roi)
 {
+	if (m_isOnlyGrabber)
+		return;
 	m_pOpenCL->Read(pLeft, pRight, roi.offsetX, roi.offsetY, roi.width, roi.height);
 }
 
 // Get HSV images
 void OvrvisionPro::GetStereoImageHSV(unsigned char* pLeft, unsigned char* pRight)
 {
+	if (m_isOnlyGrabber)
+		return;
 	m_pOpenCL->GetHSV(pLeft, pRight);
 }
 
@@ -374,6 +545,8 @@ ROI OvrvisionPro::SetSkinScale(unsigned int scale)
 {
 	ROI roi = { 0, 0 };
 	SCALING scaling;
+	if (m_isOnlyGrabber)
+		return roi;
 	switch (scale)
 	{
 	case 4:
@@ -396,12 +569,16 @@ ROI OvrvisionPro::SetSkinScale(unsigned int scale)
 // Get Skin image
 void OvrvisionPro::GetSkinImage(unsigned char* pLeft, unsigned char* pRight)
 {
+	if (m_isOnlyGrabber)
+		return;
 	m_pOpenCL->SkinImages(pLeft, pRight);
 }
 
 // Get skin region mask
 int OvrvisionPro::SkinRegion(unsigned char* left, unsigned char* right)
 {
+	if (m_isOnlyGrabber)
+		return 0;
 	m_pOpenCL->SkinRegion(left, right);
 	return 2;
 }
@@ -409,23 +586,31 @@ int OvrvisionPro::SkinRegion(unsigned char* left, unsigned char* right)
 // Set HSV region
 void OvrvisionPro::SetSkinHSV(int h_low, int h_high, int s_low, int s_high)
 {
+	if (m_isOnlyGrabber)
+		return;
 	m_pOpenCL->SetHSV(h_low, h_high, s_low, s_high);
 }
 
 // Set HSV region
 void OvrvisionPro::SetSkinHSV(int range[4])
 {
+	if (m_isOnlyGrabber)
+		return;
 	m_pOpenCL->SetHSV(range[0], range[1], range[2], range[3]);
 }
 
 // Set skin threshold 
 int OvrvisionPro::SetSkinThreshold(int threshold)
 {
+	if (m_isOnlyGrabber)
+		return 0;
 	return m_pOpenCL->SetThreshold(threshold);
 }
 
 void OvrvisionPro::DetectHand(int frames)
 {
+	if (m_isOnlyGrabber)
+		return;
 	m_pOpenCL->StartCalibration(frames);
 }
 
@@ -433,17 +618,23 @@ void OvrvisionPro::DetectHand(int frames)
 // Get color histrgam in HSV space
 int OvrvisionPro::ColorHistgram(unsigned char* histgram)
 {
+	if (m_isOnlyGrabber)
+		return 0;
 	m_pOpenCL->ColorHistgram(histgram);
 	return 2;
 }
 
 bool OvrvisionPro::GetScaledImageRGBA(unsigned char *left, unsigned char *right)
 {
+	if (m_isOnlyGrabber)
+		return 0;
 	return m_pOpenCL->Read(left, right);
 }
 
 void OvrvisionPro::InspectTextures(unsigned char *left, unsigned char *right, unsigned int type)
 {
+	if (m_isOnlyGrabber)
+		return;
 	m_pOpenCL->InspectTextures(left, right, type);
 }
 
@@ -453,53 +644,130 @@ bool OvrvisionPro::CheckGPU()
 }
 
 //Get Camera data pre-store.
-void OvrvisionPro::PreStoreCamData(OVR::Camqt qt)
+bool OvrvisionPro::PreStoreCamData(OVR::Camqt qt)
 {
-	if (!m_isOpen)
-		return;
+	if (!m_isOpen || m_isMemory)
+		return false; 
 
-#if defined(WIN32)
-	if (m_pODS->GetBayer16Image((uchar *)m_pFrame, !m_isCameraSync) == RESULT_OK)
+#if defined(WIN32) 
+		if ( m_pODS->GetBayer16Image((uchar *)m_pFrame, !m_isCameraSync) == RESULT_OK)
 #elif defined(MACOSX)
 	if ([m_pOAV getBayer16Image: (uchar *)m_pFrame blocking: !m_isCameraSync] == RESULT_OK)
 #elif defined(LINUX)
 	if (m_pOV4L->GetBayer16Image((uchar *)m_pFrame, !m_isCameraSync) == RESULT_OK)
 #endif
+
 	{
-		if (qt == OV_CAMQT_DMSRMP)
-			m_pOpenCL->DemosaicRemap(m_pFrame, m_pPixels[0], m_pPixels[1]);	//OpenCL
-		else if (qt == OV_CAMQT_DMS)
-			m_pOpenCL->Demosaic(m_pFrame, m_pPixels[0], m_pPixels[1]);		//OpenCL
-		else {
-			byte* p_left = m_pPixels[0];
-			byte* p_right = m_pPixels[1];
-			for (int y = 0; y < m_height; y++) {
-				for (int x = 0; x < m_width; x++) {
-					int ps = (y * m_width) + x;
-					int dest_ps = ps * 4;
-					p_left[dest_ps + 0] = p_left[dest_ps + 1] = p_left[dest_ps + 2] = p_left[dest_ps + 3] = (m_pFrame[ps] & 0x00FF);
-					p_right[dest_ps + 0] = p_right[dest_ps + 1] = p_right[dest_ps + 2] = p_right[dest_ps + 3] = (m_pFrame[ps] >> 8);
+		if (!m_isOnlyGrabber)
+		{
+			if (qt == OV_CAMQT_DMSRMP)
+				m_pOpenCL->DemosaicRemap(m_pFrame, m_pPixels[0], m_pPixels[1]);	//OpenCL
+			else if (qt == OV_CAMQT_DMS)
+				m_pOpenCL->Demosaic(m_pFrame, m_pPixels[0], m_pPixels[1]);		//OpenCL
+			else {
+				byte* p_left = m_pPixels[0];
+				byte* p_right = m_pPixels[1];
+				for (int y = 0; y < m_height; y++) {
+					for (int x = 0; x < m_width; x++) {
+						int ps = (y * m_width) + x;
+						int dest_ps = ps * 4;
+						p_left[dest_ps + 0] = p_left[dest_ps + 1] = p_left[dest_ps + 2] = p_left[dest_ps + 3] = (m_pFrame[ps] & 0x00FF);
+						p_right[dest_ps + 0] = p_right[dest_ps + 1] = p_right[dest_ps + 2] = p_right[dest_ps + 3] = (m_pFrame[ps] >> 8);
+					}
 				}
 			}
-
+			return true;
 		}
 	}
+	return false;
 }
+//Get Camera data pre-store.
+bool OvrvisionPro::PreStoreMemoryData(OVR::Camqt qt, const uchar* pFrame)
+{
+	if (!m_isOpen || !m_isMemory)
+		return false;
+
+	if (true)
+	{
+		int offset = m_width*m_height;
+		
+		//fix data mapping
+		for (int y = 0; y < m_height; y++) {
+			for (int x = 0; x < m_width; x++) {
+				int ps = (y * m_width) + x;
+				m_pFrame[ps] = (pFrame[ps + offset] << 8) | (pFrame[ps]);
+			}
+		}/*
+		uchar* dst = (uchar*)m_pFrame;
+		int len = m_width*m_height/2 ;
+		int idx = 0;
+		uchar tmp;
+
+		for (int y = 0; y < len; y++) {
+			dst[idx] = pFrame[idx];
+			dst[idx + 1] = pFrame[offset + idx];
+
+			dst[offset + idx ] = pFrame[idx + 1];
+			dst[offset + idx+1] = pFrame[offset + idx + 1];
+			idx += 2;
+		}*/
+
+
+	}
+	else
+	{
+		memcpy(m_pFrame, pFrame, 2 * m_width*m_height);
+	}
+	const ushort* ptr = (const ushort*)m_pFrame;
+	{
+		if (!m_isOnlyGrabber)
+		{
+			if (qt == OV_CAMQT_DMSRMP)
+				m_pOpenCL->DemosaicRemap(ptr, m_pPixels[0], m_pPixels[1]);	//OpenCL
+			else if (qt == OV_CAMQT_DMS)
+				m_pOpenCL->Demosaic(ptr, m_pPixels[0], m_pPixels[1]);		//OpenCL
+			else {
+				byte* p_left = m_pPixels[0];
+				byte* p_right = m_pPixels[1];
+				for (int y = 0; y < m_height; y++) {
+					for (int x = 0; x < m_width; x++) {
+						int ps = (y * m_width) + x;
+						int dest_ps = ps * 4;
+						p_left[dest_ps + 0] = p_left[dest_ps + 1] = p_left[dest_ps + 2] = p_left[dest_ps + 3] = (ptr[ps] & 0x00FF);
+						p_right[dest_ps + 0] = p_right[dest_ps + 1] = p_right[dest_ps + 2] = p_right[dest_ps + 3] = (ptr[ps] >> 8);
+					}
+				}
+			}
+			return true;
+		}
+	}
+	return false;
+}
+
+unsigned char* OvrvisionPro::GetFrame()
+{
+	return (uchar*)m_pFrame; 
+}
+
 
 unsigned char* OvrvisionPro::GetCamImageBGRA(OVR::Cameye eye)
 {
+	if (m_isOnlyGrabber)
+		return 0;
 	return m_pPixels[(int)eye];
 }
 
 void OvrvisionPro::GetCamImageBGRA(unsigned char* pImageBuf, OVR::Cameye eye)
 {
+	if (m_isOnlyGrabber)
+		return;
 	memcpy(pImageBuf, m_pPixels[(int)eye], m_width*m_height*OV_PIXELSIZE_RGB);
 }
 
-void OvrvisionPro::SetCallbackImageFunction(void(*func)())
+void OvrvisionPro::SetCallbackImageFunction(void(*func)(void*), void*ud)
 {
 #if defined(WIN32)
-	m_pODS->SetCallback(func);
+	m_pODS->SetCallback(func,ud);
 #elif defined(MACOSX)
     [m_pOAV setCallback:(CALLBACK_FUNC*)func];
 #elif defined(LINUX)
@@ -511,40 +779,46 @@ void OvrvisionPro::SetCallbackImageFunction(void(*func)())
 void OvrvisionPro::InitCameraSetting()
 {
 	//Read files.
-	OvrvisionSetting ovrset(this);
-	if (ovrset.ReadEEPROM()) {
+	if (ovrset->ReadEEPROM()) {
 
-		//Read Set
-		SetCameraExposure(ovrset.m_propExposure);
-		SetCameraGain(ovrset.m_propGain);
-		SetCameraBLC(ovrset.m_propBLC);
-		SetCameraWhiteBalanceAuto((bool)ovrset.m_propWhiteBalanceAuto);
-		if (ovrset.m_propWhiteBalanceAuto == 0) {
-			SetCameraWhiteBalanceR(ovrset.m_propWhiteBalanceR);
-			SetCameraWhiteBalanceG(ovrset.m_propWhiteBalanceG);
-			SetCameraWhiteBalanceB(ovrset.m_propWhiteBalanceB);
-		}
-		
-		//50ms wait
+		if (!m_isMemory)
+		{
+			//Read Set
+			SetCameraExposure(ovrset->m_propExposure);
+			SetCameraGain(ovrset->m_propGain);
+			SetCameraBLC(ovrset->m_propBLC);
+			SetCameraWhiteBalanceAuto((bool)ovrset->m_propWhiteBalanceAuto);
+			if (ovrset->m_propWhiteBalanceAuto == 0) {
+				SetCameraWhiteBalanceR(ovrset->m_propWhiteBalanceR);
+				SetCameraWhiteBalanceG(ovrset->m_propWhiteBalanceG);
+				SetCameraWhiteBalanceB(ovrset->m_propWhiteBalanceB);
+			}
+
+			//50ms wait
 #if defined(WIN32)
-		Sleep(50);
+			Sleep(50);
 #elif defined(MACOSX)
-		[NSThread sleepForTimeInterval:0.05];
+			[NSThread sleepForTimeInterval:0.05];
 #elif defined(LINUX)
-		usleep(50000);
+			usleep(50000);
 #endif
-		m_focalpoint = ovrset.m_focalPoint.at<float>(0);
-		m_rightgap[0] = (float)-ovrset.m_trans.at<double>(0);	//T:X
-		m_rightgap[1] = (float)ovrset.m_trans.at<double>(1);	//T:Y
-		m_rightgap[2] = (float)ovrset.m_trans.at<double>(2);	//T:Z
+		}
 	}
+	m_focalpoint = ovrset->m_focalPoint.at<float>(0);
+	m_rightgap[0] = (float)-ovrset->m_trans.at<double>(0);	//T:X
+	m_rightgap[1] = (float)ovrset->m_trans.at<double>(1);	//T:Y
+	m_rightgap[2] = (float)ovrset->m_trans.at<double>(2);	//T:Z
 
 	if (m_pOpenCL)
-		m_pOpenCL->LoadCameraParams(&ovrset);
+		m_pOpenCL->LoadCameraParams(ovrset);
 }
 
 bool OvrvisionPro::isOpen(){
 	return m_isOpen;
+}
+
+bool OvrvisionPro::isFromMemory(){
+	return m_isMemory;
 }
 
 int OvrvisionPro::GetCamWidth(){
@@ -580,7 +854,7 @@ int OvrvisionPro::GetCameraExposure(){
 	int value = 0;
 	bool automode = false;
 
-	if (!m_isOpen)
+	if (!m_isOpen || m_isMemory)
 		return (-1);
 
 #if defined(WIN32)
@@ -594,7 +868,7 @@ int OvrvisionPro::GetCameraExposure(){
 	return value;
 }
 void OvrvisionPro::SetCameraExposure(int value){
-	if (!m_isOpen)
+	if (!m_isOpen || m_isMemory)
 		return;
 
 	//The range specification
@@ -615,7 +889,7 @@ void OvrvisionPro::SetCameraExposure(int value){
 #endif
 }
 bool OvrvisionPro::SetCameraExposurePerSec(float fps){
-	if (!m_isOpen)
+	if (!m_isOpen || m_isMemory)
 		return false;
 
 	//The range specification
@@ -638,7 +912,7 @@ int OvrvisionPro::GetCameraGain(){
 	int value = 0;
 	bool automode = false;
 
-	if (!m_isOpen)
+	if (!m_isOpen || m_isMemory)
 		return (-1);
 
 #if defined(WIN32)
@@ -652,7 +926,7 @@ int OvrvisionPro::GetCameraGain(){
 	return value;
 }
 void OvrvisionPro::SetCameraGain(int value){
-	if (!m_isOpen)
+	if (!m_isOpen || m_isMemory)
 		return;
 
 	//The range specification
@@ -675,7 +949,7 @@ int OvrvisionPro::GetCameraWhiteBalanceR(){
 	int value = 0;
 	bool automode = false;
 
-	if (!m_isOpen)
+	if (!m_isOpen || m_isMemory)
 		return (-1);
 
 #if defined(WIN32)
@@ -688,7 +962,7 @@ int OvrvisionPro::GetCameraWhiteBalanceR(){
 	return value;
 }
 void OvrvisionPro::SetCameraWhiteBalanceR(int value){
-	if (!m_isOpen)
+	if (!m_isOpen || m_isMemory)
 		return;
 
 	//The range specification
@@ -710,7 +984,7 @@ int OvrvisionPro::GetCameraWhiteBalanceG(){
 	int value = 0;
 	bool automode = false;
 
-	if (!m_isOpen)
+	if (!m_isOpen || m_isMemory)
 		return (-1);
 
 #if defined(WIN32)
@@ -724,7 +998,7 @@ int OvrvisionPro::GetCameraWhiteBalanceG(){
 	return value;
 }
 void OvrvisionPro::SetCameraWhiteBalanceG(int value){
-	if (!m_isOpen)
+	if (!m_isOpen || m_isMemory)
 		return;
 
 	//The range specification
@@ -746,7 +1020,7 @@ int OvrvisionPro::GetCameraWhiteBalanceB(){
 	int value = 0;
 	bool automode = false;
 
-	if (!m_isOpen)
+	if (!m_isOpen || m_isMemory)
 		return (-1);
 
 #if defined(WIN32)
@@ -759,7 +1033,7 @@ int OvrvisionPro::GetCameraWhiteBalanceB(){
 	return value;
 }
 void OvrvisionPro::SetCameraWhiteBalanceB(int value) {
-	if (!m_isOpen)
+	if (!m_isOpen || m_isMemory)
 		return;
 
 	//The range specification
@@ -797,7 +1071,7 @@ int OvrvisionPro::GetCameraBLC(){
 	return value;
 }
 void OvrvisionPro::SetCameraBLC(int value){
-	if (!m_isOpen)
+	if (!m_isOpen || m_isMemory)
 		return;
 
 	//The range specification
@@ -820,7 +1094,7 @@ bool OvrvisionPro::GetCameraWhiteBalanceAuto(){
 	int value = 0;
 	bool automode = false;
 
-	if (!m_isOpen)
+	if (!m_isOpen || m_isMemory)
 		return false;
 
 #if defined(WIN32)
@@ -834,7 +1108,7 @@ bool OvrvisionPro::GetCameraWhiteBalanceAuto(){
 }
 
 void OvrvisionPro::SetCameraWhiteBalanceAuto(bool value){
-	if (!m_isOpen)
+	if (!m_isOpen || m_isMemory)
 		return;
 
 	int curval = GetCameraWhiteBalanceB();
@@ -851,7 +1125,7 @@ void OvrvisionPro::SetCameraWhiteBalanceAuto(bool value){
 
 //EEPROM
 void OvrvisionPro::UserDataAccessUnlock(){
-	if (!m_isOpen)
+	if (!m_isOpen || m_isMemory)
 		return;
 
 #if defined(WIN32)
@@ -871,7 +1145,7 @@ void OvrvisionPro::UserDataAccessUnlock(){
 }
 
 void OvrvisionPro::UserDataAccessLock() {
-	if (!m_isOpen)
+	if (!m_isOpen || m_isMemory)
 		return;
 
 #if defined(WIN32)
@@ -884,7 +1158,7 @@ void OvrvisionPro::UserDataAccessLock() {
 #endif
 }
 void OvrvisionPro::UserDataAccessSelectAddress(unsigned int addr) {
-	if (!m_isOpen)
+	if (!m_isOpen || m_isMemory)
 		return;
 
 	addr &= 0x000001FF;
@@ -904,7 +1178,7 @@ unsigned char OvrvisionPro::UserDataAccessGetData() {
 	int value = 0;
 	bool automode_none = false;
 
-	if (!m_isOpen)
+	if (!m_isOpen || m_isMemory)
 		return 0x00;
 
 #if defined(WIN32)
@@ -917,7 +1191,7 @@ unsigned char OvrvisionPro::UserDataAccessGetData() {
 	return (unsigned char)value;
 }
 void OvrvisionPro::UserDataAccessSetData(unsigned char value){
-	if (!m_isOpen)
+	if (!m_isOpen || m_isMemory)
 		return;
 
 	int value_int = (int)value;
@@ -933,7 +1207,7 @@ void OvrvisionPro::UserDataAccessSetData(unsigned char value){
 
 }
 void OvrvisionPro::UserDataAccessSave(){
-	if (!m_isOpen)
+	if (!m_isOpen || m_isMemory)
 		return;
 
 #if defined(WIN32)
@@ -946,7 +1220,7 @@ void OvrvisionPro::UserDataAccessSave(){
 }
 
 void OvrvisionPro::UserDataAccessCheckSumAddress(){
-	if (!m_isOpen)
+	if (!m_isOpen || m_isMemory)
 		return;
 
 #if (WIN32)
@@ -959,20 +1233,22 @@ void OvrvisionPro::UserDataAccessCheckSumAddress(){
 }
 
 bool OvrvisionPro::CameraParamSaveEEPROM(){
-	OvrvisionSetting ovrset(this);
 	bool rt;
+
+	if (m_isMemory)
+		return false;
 	
 	//Distort param is readed.
-	ovrset.m_propExposure = GetCameraExposure();
-	ovrset.m_propGain = GetCameraGain();
-	ovrset.m_propBLC = GetCameraBLC();
-	ovrset.m_propWhiteBalanceR = GetCameraWhiteBalanceR();
-	ovrset.m_propWhiteBalanceG = GetCameraWhiteBalanceG();
-	ovrset.m_propWhiteBalanceB = GetCameraWhiteBalanceB();
-	ovrset.m_propWhiteBalanceAuto = (char)GetCameraWhiteBalanceAuto();
+	ovrset->m_propExposure = GetCameraExposure();
+	ovrset->m_propGain = GetCameraGain();
+	ovrset->m_propBLC = GetCameraBLC();
+	ovrset->m_propWhiteBalanceR = GetCameraWhiteBalanceR();
+	ovrset->m_propWhiteBalanceG = GetCameraWhiteBalanceG();
+	ovrset->m_propWhiteBalanceB = GetCameraWhiteBalanceB();
+	ovrset->m_propWhiteBalanceAuto = (char)GetCameraWhiteBalanceAuto();
 
 	//Write
-	rt = ovrset.WriteEEPROM(WRITE_EEPROM_FLAG_CAMERASETWR);
+	rt = ovrset->WriteEEPROM(WRITE_EEPROM_FLAG_CAMERASETWR);
 
 	//50ms wait
 #if defined(WIN32)
@@ -987,11 +1263,12 @@ bool OvrvisionPro::CameraParamSaveEEPROM(){
 }
 
 bool OvrvisionPro::CameraParamResetEEPROM(){
-	OvrvisionSetting ovrset(this);
 	bool rt;
+	if (m_isMemory)
+		return false;
 
 	//Write
-	rt = ovrset.ResetEEPROM();
+	rt = ovrset->ResetEEPROM();
 
 	//50ms wait
 #if defined(WIN32)
@@ -1003,6 +1280,16 @@ bool OvrvisionPro::CameraParamResetEEPROM(){
 #endif
 
 	return rt;
+}
+
+
+std::string  OvrvisionPro::GetOVRSettings()
+{
+	return ovrset->GetSettingString();
+}
+void OvrvisionPro::SetOVRSettings(const std::string& str)
+{
+	ovrset->SetSettingString(str);
 }
 
 /*

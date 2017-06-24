@@ -141,7 +141,7 @@ public:
 
 			//Callback
 			if (m_get_callback != NULL)
-				m_get_callback();
+				m_get_callback(userData);
 		}
 
 		return S_OK;
@@ -156,7 +156,8 @@ public:
 	//Var
 	int m_LatestBufferLength;
 	unsigned char* m_pPixels;
-	void(*m_get_callback)(void);
+	void(*m_get_callback)(void*);
+	void* userData;
 
 	//Thread var
 	CRITICAL_SECTION m_critSection;
@@ -500,7 +501,7 @@ int OvrvisionDirectShow::CreateDevice(usb_id vid, usb_id pid,
 				REFERENCE_TIME framerate = 10000000 / pVih->AvgTimePerFrame;
 				//Set infomation
 				if(pVih->bmiHeader.biWidth == cam_w && pVih->bmiHeader.biHeight == cam_h
-					 && pmt->subtype == MEDIASUBTYPE_YUY2 && framerate == rate){
+					 && pmt->subtype == MEDIASUBTYPE_YUY2 /*&& framerate == rate*/){
 					hr = pAMSConfig->SetFormat(pmt);
 					m_width = pVih->bmiHeader.biWidth;
 					m_height = pVih->bmiHeader.biHeight;
@@ -741,9 +742,10 @@ int OvrvisionDirectShow::GetMaxPixelDataSize()
 }
 
 //Callback
-void OvrvisionDirectShow::SetCallback(void(*func)())
+void OvrvisionDirectShow::SetCallback(void(*func)(void*),void*ud)
 {
 	m_pSGCallback->m_get_callback = func;
+	m_pSGCallback->userData = ud;
 }
 
 };

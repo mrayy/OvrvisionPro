@@ -93,7 +93,7 @@
     <PostBuildEventUseInBuild>false</PostBuildEventUseInBuild>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <OutDir>.\..\..\bin\x64\</OutDir>
+    <OutDir>.\..\..\bin\x64\ </OutDir>
     <IntDir>$(ProjectName)\$(Configuration)_$(Platform)\</IntDir>
     <LinkIncremental>true</LinkIncremental>
     <PostBuildEventUseInBuild>false</PostBuildEventUseInBuild>
@@ -242,7 +242,7 @@
       <DebugInformationFormat />
     </ClCompile>
     <Link>
-      <AdditionalDependencies>wizapply_win64.lib;ovrvision64.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>wizapply_win64.lib;ovrvision.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>.\..\..\3rdparty\wizapply;.\..\..\bin\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>

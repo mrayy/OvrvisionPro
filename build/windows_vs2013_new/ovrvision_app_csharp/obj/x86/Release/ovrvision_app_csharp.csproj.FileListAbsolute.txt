@@ -1,0 +1,9 @@
+C:\Users\Torso\Documents\Development\ovrvision\ovrvision-master\bin\x86\ovrvision_app_csharp.exe
+C:\Users\Torso\Documents\Development\ovrvision\ovrvision-master\bin\x86\ovrvision_app_csharp.pdb
+C:\Users\Torso\Documents\Development\ovrvision\ovrvision-master\build\windows_vs2013_new\ovrvision_app_csharp\obj\x86\Release\ovrvision_app.MFrom.resources
+C:\Users\Torso\Documents\Development\ovrvision\ovrvision-master\build\windows_vs2013_new\ovrvision_app_csharp\obj\x86\Release\ovrvision_app.Properties.Resources.resources
+C:\Users\Torso\Documents\Development\ovrvision\ovrvision-master\build\windows_vs2013_new\ovrvision_app_csharp\obj\x86\Release\ovrvision_app.SettingForm.resources
+C:\Users\Torso\Documents\Development\ovrvision\ovrvision-master\build\windows_vs2013_new\ovrvision_app_csharp\obj\x86\Release\ovrvision_app_csharp.csproj.GenerateResource.Cache
+C:\Users\Torso\Documents\Development\ovrvision\ovrvision-master\build\windows_vs2013_new\ovrvision_app_csharp\obj\x86\Release\ovrvision_app_csharp.exe
+C:\Users\Torso\Documents\Development\ovrvision\ovrvision-master\build\windows_vs2013_new\ovrvision_app_csharp\obj\x86\Release\ovrvision_app_csharp.pdb
+C:\Users\Torso\Documents\Development\ovrvision\ovrvision-master\build\windows_vs2013_new\ovrvision_app_csharp\obj\x86\Release\ovrvision_app_csharp.csprojResolveAssemblyReference.cache

@@ -20,6 +20,9 @@
 #include <ovrvision_tracking.h>
 #include "ovrvision_setting.h"
 #include "ovrvision_calibration.h"
+#include "UnityGraphicsDevice.h"
+
+
 #elif MACOSX
 //config gdata class
 #include "ovrvision_setting.h"
@@ -138,6 +141,32 @@ CSHARP_EXPORT int ovOpen(int locationID, float arMeter, int type)
 
 	return 0;	//OK
 }
+CSHARP_EXPORT int ovOpenMemory(float arMeter, int type)
+{
+	//Create object
+	if (g_ovOvrvision == NULL)
+		g_ovOvrvision = new OVR::OvrvisionPro();	//MainVideo
+
+	//Ovrvision Open
+	if (g_ovOvrvision->OpenMemory((OVR::Camprop)type) == 0)	//0=Error
+		return 1;	//FALSE
+
+	//Create AR object
+	if (g_ovOvrvisionAR == NULL)
+		g_ovOvrvisionAR = new OVR::OvrvisionAR(arMeter, g_ovOvrvision->GetCamWidth(),
+		g_ovOvrvision->GetCamHeight(),
+		g_ovOvrvision->GetCamFocalPoint());	//AR
+	//Create AR object
+	if (g_ovOvrvisionTrack == NULL)
+		g_ovOvrvisionTrack = new OVR::OvrvisionTracking(g_ovOvrvision->GetCamWidth(),
+		g_ovOvrvision->GetCamHeight(), g_ovOvrvision->GetCamFocalPoint());	//Tracking
+
+	//Clear
+	g_callTexture2DLeft = NULL;
+	g_callTexture2DRight = NULL;
+
+	return 0;	//OK
+}
 
 // int ovClose(void)
 CSHARP_EXPORT int ovClose(void)
@@ -189,6 +218,13 @@ CSHARP_EXPORT void ovPreStoreCamData(int qt)
 		return;
 
 	g_ovOvrvision->PreStoreCamData((OVR::Camqt)qt);	//Renderer
+}
+CSHARP_EXPORT void ovPreStoreMemoryData(int qt,void* data)
+{
+	if (g_ovOvrvision == NULL)
+		return;
+
+	g_ovOvrvision->PreStoreMemoryData((OVR::Camqt)qt,(const uchar*)data);	//Renderer
 }
 
 // int ovGetCamImage(unsigned char* pImage, int eye)
@@ -291,7 +327,6 @@ CSHARP_EXPORT void ovGetCamImageForUnity(unsigned char* pImagePtr_Left, unsigned
 
 //for Unity extern
 extern float g_Time;
-extern int g_DeviceType;
 #if SUPPORT_D3D11
 extern ID3D11Device* g_D3D11Device;
 #endif
@@ -312,69 +347,17 @@ CSHARP_EXPORT void ovGetCamImageForUnityNative(void* pTexPtr_Left, void* pTexPtr
 	int length = g_ovOvrvision->GetCamWidth() * g_ovOvrvision->GetCamHeight() * g_ovOvrvision->GetCamPixelsize();
 	int offsetlen = g_ovOvrvision->GetCamPixelsize();
 
-	if (g_DeviceType == 2) {	//Direct11
-#if SUPPORT_D3D11
-		ID3D11DeviceContext* ctx = NULL;
-		ID3D11Device* device = (ID3D11Device*)g_D3D11Device;
-		device->GetImmediateContext(&ctx);
-
-		D3D11_TEXTURE2D_DESC desc_left, desc_right;
-		ID3D11Texture2D* d3dtex_left = (ID3D11Texture2D*)pTexPtr_Left;
-		ID3D11Texture2D* d3dtex_right = (ID3D11Texture2D*)pTexPtr_Right;
-
-		d3dtex_left->GetDesc(&desc_left);
-		d3dtex_right->GetDesc(&desc_right);
-
-		ctx->UpdateSubresource(d3dtex_left, 0, NULL, pLeft, g_ovOvrvision->GetCamWidth() * offsetlen, 0);
-		ctx->UpdateSubresource(d3dtex_right, 0, NULL, pRight, g_ovOvrvision->GetCamWidth() * offsetlen, 0);
-
-		ctx->Release();
-#endif
+	RenderAPI* renderer = GetRenderer();
+	if (pTexPtr_Left)
+	{
+		renderer->BeginModifyTexture(pTexPtr_Left, 0, 0, 0);
+		renderer->EndModifyTexture(pTexPtr_Left, g_ovOvrvision->GetCamWidth(), g_ovOvrvision->GetCamHeight(), g_ovOvrvision->GetCamPixelsize(), g_ovOvrvision->GetCamWidth() * offsetlen, pLeft);
 	}
-	else if (g_DeviceType == 1) {	//DirectX9
-#if SUPPORT_D3D9
-		IDirect3DTexture9* d3dtex_left = (IDirect3DTexture9*)pTexPtr_Left;
-		IDirect3DTexture9* d3dtex_right = (IDirect3DTexture9*)pTexPtr_Right;
-		D3DSURFACE_DESC desc_left, desc_right;
-		d3dtex_left->GetLevelDesc(0, &desc_left);
-		d3dtex_left->GetLevelDesc(0, &desc_right);
 
-		D3DLOCKED_RECT lr;
-		d3dtex_left->LockRect(0, &lr, NULL, 0);
-		memcpy((unsigned char*)lr.pBits, pLeft, length);
-		d3dtex_left->UnlockRect(0);
-
-		d3dtex_right->LockRect(0, &lr, NULL, 0);
-		memcpy((unsigned char*)lr.pBits, pRight, length);
-		d3dtex_right->UnlockRect(0);
-#endif
-	}
-	else if (g_DeviceType == 18) {	//DirectX12
-#if SUPPORT_D3D12
-
-#endif
-	}
-	else if (g_DeviceType == 0) {	//OpenGL
-#if SUPPORT_OPENGL
-        uintptr_t gltex_left = (uintptr_t)pTexPtr_Left;
-        uintptr_t gltex_right = (uintptr_t)pTexPtr_Right;
-
-		glBindTexture(GL_TEXTURE_2D, (GLuint)gltex_left);
-		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, g_ovOvrvision->GetCamWidth(), g_ovOvrvision->GetCamHeight(), GL_BGRA_EXT, GL_UNSIGNED_BYTE, pLeft);
-		glBindTexture(GL_TEXTURE_2D, (GLuint)gltex_right);
-		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, g_ovOvrvision->GetCamWidth(), g_ovOvrvision->GetCamHeight(), GL_BGRA_EXT, GL_UNSIGNED_BYTE, pRight);
-#endif
-	}
-	else if (g_DeviceType == 17) {	//OpenGLCore
-#if SUPPORT_OPENGL
-		uintptr_t gltex_left = (uintptr_t)pTexPtr_Left;
-		uintptr_t gltex_right = (uintptr_t)pTexPtr_Right;
-
-		glBindTexture(GL_TEXTURE_2D, gltex_left);
-		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, g_ovOvrvision->GetCamWidth(), g_ovOvrvision->GetCamHeight(), GL_RGBA, GL_UNSIGNED_BYTE, pLeft);
-		glBindTexture(GL_TEXTURE_2D, gltex_right);
-		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, g_ovOvrvision->GetCamWidth(), g_ovOvrvision->GetCamHeight(), GL_RGBA, GL_UNSIGNED_BYTE, pRight);
-#endif
+	if (pTexPtr_Right)
+	{
+		renderer->BeginModifyTexture(pTexPtr_Right, 0, 0, 0);
+		renderer->EndModifyTexture(pTexPtr_Right, g_ovOvrvision->GetCamWidth(), g_ovOvrvision->GetCamHeight(), g_ovOvrvision->GetCamPixelsize(), g_ovOvrvision->GetCamWidth() * offsetlen, pRight);
 	}
 }
 //for GL.IssuePluginEvent

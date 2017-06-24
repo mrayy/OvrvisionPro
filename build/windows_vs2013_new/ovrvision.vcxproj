@@ -185,7 +185,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
-      <Optimization>MaxSpeed</Optimization>
+      <Optimization>Disabled</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <AdditionalIncludeDirectories>.\..\..\include;.\..\..\3rdparty\aruco;.\..\..\3rdparty\opencv\build\include;.\..\..\3rdparty;.\..\..\3rdparty\opencl\amd\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;_OVRVISION_EXPORTS;OPENCV_VERSION_3;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -247,7 +247,7 @@
       <TargetEnvironment>X64</TargetEnvironment>
     </Midl>
     <ClCompile>
-      <Optimization>MaxSpeed</Optimization>
+      <Optimization>Disabled</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <AdditionalIncludeDirectories>.\..\..\include;.\..\..\3rdparty\aruco;.\..\..\3rdparty\opencv\build\include;.\..\..\3rdparty;.\..\..\3rdparty\opencl\amd\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;_OVRVISION_EXPORTS;OPENCV_VERSION_3;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -268,7 +268,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <TargetMachine>MachineX64</TargetMachine>
-      <ImportLibrary>$(OutDir)ovrvision64.lib</ImportLibrary>
+      <ImportLibrary>$(OutDir)ovrvision.lib</ImportLibrary>
     </Link>
     <PostBuildEvent>
       <Command>If Exist $(TargetDir)\ovrvision.dll copy $(TargetDir)\ovrvision.dll $(SolutionDir)..\all_unity5\Assets\OvrvisionPro\Plugins\x86_64\ovrvision.dll /Y /B</Command>
@@ -323,13 +323,30 @@
     <ClCompile Include="..\..\src\lib_src\ovrvision_ar.cpp" />
     <ClCompile Include="..\..\src\lib_src\ovrvision_ar_metaio.cpp" />
     <ClCompile Include="..\..\src\lib_src\ovrvision_calibration.cpp" />
-    <ClCompile Include="..\..\src\lib_src\ovrvision_csharp.cpp" />
-    <ClCompile Include="..\..\src\lib_src\ovrvision_csharp_unity.cpp" />
-    <ClCompile Include="..\..\src\lib_src\ovrvision_ds.cpp" />
-    <ClCompile Include="..\..\src\lib_src\ovrvision_pro.cpp" />
+    <ClCompile Include="..\..\src\lib_src\ovrvision_csharp.cpp">
+      <Optimization Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Disabled</Optimization>
+    </ClCompile>
+    <ClCompile Include="..\..\src\lib_src\ovrvision_csharp_unity.cpp">
+      <Optimization Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Disabled</Optimization>
+    </ClCompile>
+    <ClCompile Include="..\..\src\lib_src\ovrvision_ds.cpp">
+      <Optimization Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Disabled</Optimization>
+    </ClCompile>
+    <ClCompile Include="..\..\src\lib_src\ovrvision_pro.cpp">
+      <Optimization Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Disabled</Optimization>
+    </ClCompile>
     <ClCompile Include="..\..\src\lib_src\ovrvision_setting.cpp" />
     <ClCompile Include="..\..\src\lib_src\ovrvision_tracking.cpp" />
     <ClCompile Include="..\..\src\lib_src\ovrvision_v4l.cpp" />
+    <ClCompile Include="..\..\src\lib_src\RenderAPI.cpp" />
+    <ClCompile Include="..\..\src\lib_src\RenderAPI_D3D11.cpp">
+      <Optimization Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Disabled</Optimization>
+    </ClCompile>
+    <ClCompile Include="..\..\src\lib_src\RenderAPI_D3D12.cpp" />
+    <ClCompile Include="..\..\src\lib_src\RenderAPI_D3D9.cpp" />
+    <ClCompile Include="..\..\src\lib_src\RenderAPI_OpenGL2.cpp" />
+    <ClCompile Include="..\..\src\lib_src\RenderAPI_OpenGLCoreES.cpp" />
+    <ClCompile Include="..\..\src\lib_src\UnityGraphicsDevice.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\3rdparty\aruco\aruco.h" />
@@ -348,6 +365,11 @@
     <ClInclude Include="..\..\include\ovrvision_ar.h" />
     <ClInclude Include="..\..\include\ovrvision_pro.h" />
     <ClInclude Include="..\..\include\ovrvision_tracking.h" />
+    <ClInclude Include="..\..\src\lib_src\IUnityGraphics.h" />
+    <ClInclude Include="..\..\src\lib_src\IUnityGraphicsD3D11.h" />
+    <ClInclude Include="..\..\src\lib_src\IUnityGraphicsD3D12.h" />
+    <ClInclude Include="..\..\src\lib_src\IUnityGraphicsD3D9.h" />
+    <ClInclude Include="..\..\src\lib_src\IUnityGraphicsMetal.h" />
     <ClInclude Include="..\..\src\lib_src\OpenCL_kernel.h" />
     <ClInclude Include="..\..\src\lib_src\OvrvisionProCL.h" />
     <ClInclude Include="..\..\src\lib_src\ovrvision_avf.h" />
@@ -356,6 +378,9 @@
     <ClInclude Include="..\..\src\lib_src\ovrvision_handimage.h" />
     <ClInclude Include="..\..\src\lib_src\ovrvision_setting.h" />
     <ClInclude Include="..\..\src\lib_src\ovrvision_v4l.h" />
+    <ClInclude Include="..\..\src\lib_src\PlatformBase.h" />
+    <ClInclude Include="..\..\src\lib_src\RenderAPI.h" />
+    <ClInclude Include="..\..\src\lib_src\UnityGraphicsDevice.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\src\lib_src\ovrvision_avf.m" />

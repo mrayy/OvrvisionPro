@@ -119,7 +119,7 @@ public:
 	int GetMaxPixelDataSize();
 
 	//Callback
-	void SetCallback(void(*func)());
+	void SetCallback(void(*func)(void*),void*ud);
 
 private:
 	//Device status

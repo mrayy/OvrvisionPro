@@ -1,0 +1,11 @@
+C:\Users\Torso\Documents\Development\ovrvision\ovrvision-master\bin\x86\ovrvision_calibration.exe
+C:\Users\Torso\Documents\Development\ovrvision\ovrvision-master\bin\x86\ovrvision_calibration.pdb
+C:\Users\Torso\Documents\Development\ovrvision\ovrvision-master\build\windows_vs2013_new\ovrvision_calibration\obj\x86\Release\ovrvision_calibration.csprojResolveAssemblyReference.cache
+C:\Users\Torso\Documents\Development\ovrvision\ovrvision-master\build\windows_vs2013_new\ovrvision_calibration\obj\x86\Release\ovrvision_calibration.ChessSizeForm.resources
+C:\Users\Torso\Documents\Development\ovrvision\ovrvision-master\build\windows_vs2013_new\ovrvision_calibration\obj\x86\Release\ovrvision_calibration.HowToUse.resources
+C:\Users\Torso\Documents\Development\ovrvision\ovrvision-master\build\windows_vs2013_new\ovrvision_calibration\obj\x86\Release\ovrvision_calibration.MFrom.resources
+C:\Users\Torso\Documents\Development\ovrvision\ovrvision-master\build\windows_vs2013_new\ovrvision_calibration\obj\x86\Release\ovrvision_calibration.Properties.Resources.resources
+C:\Users\Torso\Documents\Development\ovrvision\ovrvision-master\build\windows_vs2013_new\ovrvision_calibration\obj\x86\Release\ovrvision_calibration.SettingForm.resources
+C:\Users\Torso\Documents\Development\ovrvision\ovrvision-master\build\windows_vs2013_new\ovrvision_calibration\obj\x86\Release\ovrvision_calibration.csproj.GenerateResource.Cache
+C:\Users\Torso\Documents\Development\ovrvision\ovrvision-master\build\windows_vs2013_new\ovrvision_calibration\obj\x86\Release\ovrvision_calibration.exe
+C:\Users\Torso\Documents\Development\ovrvision\ovrvision-master\build\windows_vs2013_new\ovrvision_calibration\obj\x86\Release\ovrvision_calibration.pdb

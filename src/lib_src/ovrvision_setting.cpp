@@ -65,6 +65,41 @@ void OvrvisionSetting::InitValue()
 		<< 428.0f);
 }
 
+
+void OvrvisionSetting::SetSettingString(const std::string& str)
+{
+
+	int mode = 0;
+
+	cv::FileStorage cvfs(str, CV_STORAGE_READ | CV_STORAGE_FORMAT_XML | FileStorage::MEMORY );
+	//get data node
+	cv::FileNode data(cvfs.fs, NULL);
+
+	mode = data["Mode"];
+
+	//read camera setting
+	m_propExposure = data["Exposure"];
+	m_propGain = data["Gain"];
+	m_propBLC = data["BLC"];
+	m_propWhiteBalanceR = data["WhiteBalanceR"];
+	m_propWhiteBalanceG = data["WhiteBalanceG"];
+	m_propWhiteBalanceB = data["WhiteBalanceB"];
+
+	m_propWhiteBalanceAuto = (char)((int)data["WhiteBalanceAuto"] & 0x00000001);
+
+	//read undistort param
+	data["LeftCameraInstric"] >> m_leftCameraInstric;
+	data["RightCameraInstric"] >> m_rightCameraInstric;
+	data["LeftCameraDistortion"] >> m_leftCameraDistortion;
+	data["RightCameraDistortion"] >> m_rightCameraDistortion;
+	data["R1"] >> m_R1;
+	data["R2"] >> m_R2;
+	data["T"] >> m_trans;
+	data["FocalPoint"] >> m_focalPoint;
+
+	cvfs.release();
+}
+
 //Read EEPROM Setting
 bool OvrvisionSetting::ReadEEPROM() {
 
@@ -156,23 +191,9 @@ bool OvrvisionSetting::ReadEEPROM() {
 		m_pSystem->UserDataAccessLock();
 
 		// For Test
-		/*
-		String filename("ovrvision_eepromtest.xml");
-		FileStorage cvfs(filename, CV_STORAGE_WRITE | CV_STORAGE_FORMAT_XML);
+		
 
-		//Write undistort param
-		write(cvfs, "LeftCameraInstric", m_leftCameraInstric);
-		write(cvfs, "RightCameraInstric", m_rightCameraInstric);
-		write(cvfs, "LeftCameraDistortion", m_leftCameraDistortion);
-		write(cvfs, "RightCameraDistortion", m_rightCameraDistortion);
-		write(cvfs, "R1", m_R1);
-		write(cvfs, "R2", m_R2);
-		write(cvfs, "T", m_trans);
-
-		write(cvfs, "FocalPoint", m_focalPoint);
-
-		cvfs.release();
-		*/
+		
 	}
 	else
 	{
@@ -211,6 +232,23 @@ bool OvrvisionSetting::ReadEEPROM() {
 			return false;
 		}
 	}
+
+	String filename("settings.xml");
+	FileStorage output(filename, CV_STORAGE_WRITE | CV_STORAGE_FORMAT_XML | FileStorage::MEMORY);
+
+	//Write undistort param
+	write(output, "LeftCameraInstric", m_leftCameraInstric);
+	write(output, "RightCameraInstric", m_rightCameraInstric);
+	write(output, "LeftCameraDistortion", m_leftCameraDistortion);
+	write(output, "RightCameraDistortion", m_rightCameraDistortion);
+	write(output, "R1", m_R1);
+	write(output, "R2", m_R2);
+	write(output, "T", m_trans);
+
+	write(output, "FocalPoint", m_focalPoint);
+
+	settingString = output.releaseAndGetString();
+
 
 	isReaded = true;
 
