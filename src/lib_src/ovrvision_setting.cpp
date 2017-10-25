@@ -71,33 +71,40 @@ void OvrvisionSetting::SetSettingString(const std::string& str)
 
 	int mode = 0;
 
-	cv::FileStorage cvfs(str, CV_STORAGE_READ | CV_STORAGE_FORMAT_XML | FileStorage::MEMORY );
-	//get data node
-	cv::FileNode data(cvfs.fs, NULL);
+	try
+	{
+		cv::FileStorage cvfs(str, FileStorage::READ | FileStorage::MEMORY | FileStorage::FORMAT_XML);
+		//get data node
+		cv::FileNode data(cvfs.fs, NULL);
 
-	mode = data["Mode"];
+		mode = data["Mode"];
 
-	//read camera setting
-	m_propExposure = data["Exposure"];
-	m_propGain = data["Gain"];
-	m_propBLC = data["BLC"];
-	m_propWhiteBalanceR = data["WhiteBalanceR"];
-	m_propWhiteBalanceG = data["WhiteBalanceG"];
-	m_propWhiteBalanceB = data["WhiteBalanceB"];
+		//read camera setting
+		m_propExposure = data["Exposure"];
+		m_propGain = data["Gain"];
+		m_propBLC = data["BLC"];
+		m_propWhiteBalanceR = data["WhiteBalanceR"];
+		m_propWhiteBalanceG = data["WhiteBalanceG"];
+		m_propWhiteBalanceB = data["WhiteBalanceB"];
 
-	m_propWhiteBalanceAuto = (char)((int)data["WhiteBalanceAuto"] & 0x00000001);
+		m_propWhiteBalanceAuto = (char)((int)data["WhiteBalanceAuto"] & 0x00000001);
 
-	//read undistort param
-	data["LeftCameraInstric"] >> m_leftCameraInstric;
-	data["RightCameraInstric"] >> m_rightCameraInstric;
-	data["LeftCameraDistortion"] >> m_leftCameraDistortion;
-	data["RightCameraDistortion"] >> m_rightCameraDistortion;
-	data["R1"] >> m_R1;
-	data["R2"] >> m_R2;
-	data["T"] >> m_trans;
-	data["FocalPoint"] >> m_focalPoint;
+		//read undistort param
+		data["LeftCameraInstric"] >> m_leftCameraInstric;
+		data["RightCameraInstric"] >> m_rightCameraInstric;
+		data["LeftCameraDistortion"] >> m_leftCameraDistortion;
+		data["RightCameraDistortion"] >> m_rightCameraDistortion;
+		data["R1"] >> m_R1;
+		data["R2"] >> m_R2;
+		data["T"] >> m_trans;
+		data["FocalPoint"] >> m_focalPoint;
 
-	cvfs.release();
+		cvfs.release();
+	}
+	catch (cv::Exception& e)
+	{
+		printf("%s\n", e.what());
+	}
 }
 
 //Read EEPROM Setting

@@ -219,12 +219,12 @@ CSHARP_EXPORT void ovPreStoreCamData(int qt)
 
 	g_ovOvrvision->PreStoreCamData((OVR::Camqt)qt);	//Renderer
 }
-CSHARP_EXPORT void ovPreStoreMemoryData(int qt,void* data)
+CSHARP_EXPORT void ovPreStoreMemoryData(int qt,void* data,bool remapData)
 {
 	if (g_ovOvrvision == NULL)
 		return;
 
-	g_ovOvrvision->PreStoreMemoryData((OVR::Camqt)qt,(const uchar*)data);	//Renderer
+	g_ovOvrvision->PreStoreMemoryData((OVR::Camqt)qt, (const uchar*)data, remapData);	//Renderer
 }
 
 // int ovGetCamImage(unsigned char* pImage, int eye)
@@ -337,7 +337,7 @@ extern IDirect3DDevice9* g_D3D9Device;
 // void ovGetCamImageForUnityNative(void* pTexPtr_Left, void* pTexPtr_Right, int qt, int useAR)
 CSHARP_EXPORT void ovGetCamImageForUnityNative(void* pTexPtr_Left, void* pTexPtr_Right)
 {
-	if (g_ovOvrvision == NULL)
+	if (g_ovOvrvision == NULL || !g_ovOvrvision->isOpen())
 		return;
 
 	//Get image
@@ -764,6 +764,13 @@ CSHARP_EXPORT int ovCalibGetImageCount()
 	return g_ovOvrvisionCalib->GetImageCount();
 }
 
+
+CSHARP_EXPORT void ovLoadCameraConfiguration(const char* str)
+{
+	if (g_ovOvrvision == NULL)
+		return ;
+	g_ovOvrvision->SetOVRSettings(str);
+}
 
 #ifdef __cplusplus
 }

@@ -74,9 +74,11 @@ public:
 	//Initialize Data
 	void InitValue();
 
-	const cv::String& GetSettingString()const
+	const cv::String& GetSettingString()
 	{
-			return settingString;
+		if (!isReaded)
+			ReadEEPROM();
+		return settingString;
 	}
 
 	void SetSettingString(const std::string& str);

@@ -682,12 +682,12 @@ bool OvrvisionPro::PreStoreCamData(OVR::Camqt qt)
 	return false;
 }
 //Get Camera data pre-store.
-bool OvrvisionPro::PreStoreMemoryData(OVR::Camqt qt, const uchar* pFrame)
+bool OvrvisionPro::PreStoreMemoryData(OVR::Camqt qt, const uchar* pFrame, bool remapData)
 {
 	if (!m_isOpen || !m_isMemory)
 		return false;
 
-	if (true)
+	if (remapData)
 	{
 		int offset = m_width*m_height;
 		
@@ -1290,6 +1290,13 @@ std::string  OvrvisionPro::GetOVRSettings()
 void OvrvisionPro::SetOVRSettings(const std::string& str)
 {
 	ovrset->SetSettingString(str);
+	m_focalpoint = ovrset->m_focalPoint.at<float>(0);
+	m_rightgap[0] = (float)-ovrset->m_trans.at<double>(0);	//T:X
+	m_rightgap[1] = (float)ovrset->m_trans.at<double>(1);	//T:Y
+	m_rightgap[2] = (float)ovrset->m_trans.at<double>(2);	//T:Z
+
+	if (m_pOpenCL)
+		m_pOpenCL->LoadCameraParams(ovrset);
 }
 
 /*
