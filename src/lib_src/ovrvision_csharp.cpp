@@ -62,6 +62,8 @@
 #include <d3d11.h>
 #endif
 
+#include <list>
+
 #if SUPPORT_OPENGL
 	#if WIN32
 	#include <gl/GL.h>
@@ -91,18 +93,16 @@
 //Size
 #define BGR_DATASIZE	(3)
 
-//Main Ovrvision Object
-static OVR::OvrvisionPro* g_ovOvrvision = NULL;	// Always open
-//AR Ovrvision Object
-static OVR::OvrvisionAR* g_ovOvrvisionAR = NULL;
-//AR Ovrvision Object
-static OVR::OvrvisionTracking* g_ovOvrvisionTrack = NULL;
-//Calibration Ovrvision Object
-static OVR::OvrvisionCalibration* g_ovOvrvisionCalib = NULL;
 
-//for GL Call
-static void* g_callTexture2DLeft = NULL;
-static void* g_callTexture2DRight = NULL;
+struct GLRenderCall
+{
+	//for GL Call
+	OVR::OvrvisionPro* ovOvrvision;
+	void* callTexture2DLeft ;
+	void* callTexture2DRight;
+};
+
+std::list<GLRenderCall> g_calls;
 
 /////////// EXPORT FUNCTION ///////////
 
@@ -114,73 +114,43 @@ extern "C" {
 // Provide them with an address to a function of this signature.
 typedef void(__stdcall * UnityRenderNative)(int eventID);
 
+CSHARP_EXPORT OVR::OvrvisionPro* ovCreateInstance()
+{
+	return new OVR::OvrvisionPro();	//MainVideo
+}
+
 // int ovOpen(void)
-CSHARP_EXPORT int ovOpen(int locationID, float arMeter, int type)
+CSHARP_EXPORT int ovOpen(OVR::OvrvisionPro*g_ovOvrvision, int locationID, float arMeter, int type)
 {
 	//Create object
-	if(g_ovOvrvision==NULL)
-		g_ovOvrvision = new OVR::OvrvisionPro();	//MainVideo
+	if (g_ovOvrvision == NULL)
+		return 1;
+		
 
 	//Ovrvision Open
 	if (g_ovOvrvision->Open(locationID, (OVR::Camprop)type) == 0)	//0=Error
 		return 1;	//FALSE
 
-	//Create AR object
-	if(g_ovOvrvisionAR==NULL)
-		g_ovOvrvisionAR = new OVR::OvrvisionAR(arMeter, g_ovOvrvision->GetCamWidth(),
-														 g_ovOvrvision->GetCamHeight(),
-														 g_ovOvrvision->GetCamFocalPoint());	//AR
-	//Create AR object
-	if (g_ovOvrvisionTrack == NULL)
-		g_ovOvrvisionTrack = new OVR::OvrvisionTracking(g_ovOvrvision->GetCamWidth(),
-						g_ovOvrvision->GetCamHeight(), g_ovOvrvision->GetCamFocalPoint());	//Tracking
-
-	//Clear
-	g_callTexture2DLeft = NULL;
-	g_callTexture2DRight = NULL;
 
 	return 0;	//OK
 }
-CSHARP_EXPORT int ovOpenMemory(float arMeter, int type)
+CSHARP_EXPORT int ovOpenMemory(OVR::OvrvisionPro*g_ovOvrvision, float arMeter, int type)
 {
 	//Create object
 	if (g_ovOvrvision == NULL)
-		g_ovOvrvision = new OVR::OvrvisionPro();	//MainVideo
+		return 1;
 
 	//Ovrvision Open
 	if (g_ovOvrvision->OpenMemory((OVR::Camprop)type) == 0)	//0=Error
 		return 1;	//FALSE
 
-	//Create AR object
-	if (g_ovOvrvisionAR == NULL)
-		g_ovOvrvisionAR = new OVR::OvrvisionAR(arMeter, g_ovOvrvision->GetCamWidth(),
-		g_ovOvrvision->GetCamHeight(),
-		g_ovOvrvision->GetCamFocalPoint());	//AR
-	//Create AR object
-	if (g_ovOvrvisionTrack == NULL)
-		g_ovOvrvisionTrack = new OVR::OvrvisionTracking(g_ovOvrvision->GetCamWidth(),
-		g_ovOvrvision->GetCamHeight(), g_ovOvrvision->GetCamFocalPoint());	//Tracking
-
-	//Clear
-	g_callTexture2DLeft = NULL;
-	g_callTexture2DRight = NULL;
 
 	return 0;	//OK
 }
 
 // int ovClose(void)
-CSHARP_EXPORT int ovClose(void)
+CSHARP_EXPORT int ovClose(OVR::OvrvisionPro*g_ovOvrvision)
 {
-	//Delete
-	if (g_ovOvrvisionTrack) {
-		delete g_ovOvrvisionTrack;
-		g_ovOvrvisionTrack = NULL;
-	}
-
-	if (g_ovOvrvisionAR) {
-		delete g_ovOvrvisionAR;
-		g_ovOvrvisionAR = NULL;
-	}
 
 	//Close
 	if (g_ovOvrvision)
@@ -190,18 +160,8 @@ CSHARP_EXPORT int ovClose(void)
 }
 
 // int ovRelease(void) -> Exit
-CSHARP_EXPORT int ovRelease(void)
+CSHARP_EXPORT int ovRelease(OVR::OvrvisionPro*g_ovOvrvision)
 {
-	//Delete
-	if (g_ovOvrvisionTrack) {
-		delete g_ovOvrvisionTrack;
-		g_ovOvrvisionTrack = NULL;
-	}
-
-	if (g_ovOvrvisionAR) {
-		delete g_ovOvrvisionAR;
-		g_ovOvrvisionAR = NULL;
-	}
 
 	if (g_ovOvrvision) {
 		delete g_ovOvrvision;
@@ -212,14 +172,14 @@ CSHARP_EXPORT int ovRelease(void)
 }
 
 // int ovPreStoreCamData() -> need ovGetCamImage : ovGetCamImageBGR
-CSHARP_EXPORT void ovPreStoreCamData(int qt)
+CSHARP_EXPORT void ovPreStoreCamData(OVR::OvrvisionPro*g_ovOvrvision,int qt)
 {
 	if (g_ovOvrvision == NULL)
 		return;
 
 	g_ovOvrvision->PreStoreCamData((OVR::Camqt)qt);	//Renderer
 }
-CSHARP_EXPORT void ovPreStoreMemoryData(int qt,void* data,bool remapData)
+CSHARP_EXPORT void ovPreStoreMemoryData(OVR::OvrvisionPro*g_ovOvrvision,int qt, void* data, bool remapData)
 {
 	if (g_ovOvrvision == NULL)
 		return;
@@ -228,7 +188,7 @@ CSHARP_EXPORT void ovPreStoreMemoryData(int qt,void* data,bool remapData)
 }
 
 // int ovGetCamImage(unsigned char* pImage, int eye)
-CSHARP_EXPORT void ovGetCamImageBGRA(unsigned char* pImage, int eye)
+CSHARP_EXPORT void ovGetCamImageBGRA(OVR::OvrvisionPro*g_ovOvrvision, unsigned char* pImage, int eye)
 {
 	if(g_ovOvrvision==NULL)
 		return;
@@ -236,7 +196,7 @@ CSHARP_EXPORT void ovGetCamImageBGRA(unsigned char* pImage, int eye)
 	//Get image
 	g_ovOvrvision->GetCamImageBGRA(pImage, (OVR::Cameye)eye);
 }
-CSHARP_EXPORT unsigned char* ovGetCamImageBGRAPointer(int eye)
+CSHARP_EXPORT unsigned char* ovGetCamImageBGRAPointer(OVR::OvrvisionPro*g_ovOvrvision, int eye)
 {
 	if (g_ovOvrvision == NULL)
 		return NULL;
@@ -245,7 +205,7 @@ CSHARP_EXPORT unsigned char* ovGetCamImageBGRAPointer(int eye)
 	return g_ovOvrvision->GetCamImageBGRA((OVR::Cameye)eye);
 }
 // int ovGetCamImageRGB(unsigned char* pImage, int eye)
-CSHARP_EXPORT void ovGetCamImageRGB(unsigned char* pImage, int eye)
+CSHARP_EXPORT void ovGetCamImageRGB(OVR::OvrvisionPro*g_ovOvrvision, unsigned char* pImage, int eye)
 {
 	if(g_ovOvrvision==NULL)
 		return;
@@ -269,7 +229,7 @@ CSHARP_EXPORT void ovGetCamImageRGB(unsigned char* pImage, int eye)
 	}
 }
 // int ovGetCamImageRGB(unsigned char* pImage, int eye)
-CSHARP_EXPORT void ovGetCamImageBGR(unsigned char* pImage, int eye)
+CSHARP_EXPORT void ovGetCamImageBGR(OVR::OvrvisionPro*g_ovOvrvision, unsigned char* pImage, int eye)
 {
 	if (g_ovOvrvision == NULL)
 		return;
@@ -294,7 +254,7 @@ CSHARP_EXPORT void ovGetCamImageBGR(unsigned char* pImage, int eye)
 }
 
 // void ovGetCamImageForUnity(unsigned char* pImagePtr_Left, unsigned char* pImagePtr_Right, int qt, int useTrack)
-CSHARP_EXPORT void ovGetCamImageForUnity(unsigned char* pImagePtr_Left, unsigned char* pImagePtr_Right)
+CSHARP_EXPORT void ovGetCamImageForUnity(OVR::OvrvisionPro*g_ovOvrvision, unsigned char* pImagePtr_Left, unsigned char* pImagePtr_Right)
 {
 	if(g_ovOvrvision==NULL)
 		return;
@@ -335,7 +295,7 @@ extern IDirect3DDevice9* g_D3D9Device;
 #endif
 
 // void ovGetCamImageForUnityNative(void* pTexPtr_Left, void* pTexPtr_Right, int qt, int useAR)
-CSHARP_EXPORT void ovGetCamImageForUnityNative(void* pTexPtr_Left, void* pTexPtr_Right)
+CSHARP_EXPORT void ovGetCamImageForUnityNative(OVR::OvrvisionPro*g_ovOvrvision, void* pTexPtr_Left, void* pTexPtr_Right)
 {
 	if (g_ovOvrvision == NULL || !g_ovOvrvision->isOpen())
 		return;
@@ -363,12 +323,20 @@ CSHARP_EXPORT void ovGetCamImageForUnityNative(void* pTexPtr_Left, void* pTexPtr
 //for GL.IssuePluginEvent
 static void __stdcall ovGetCamImageForUnityNativeEvent(int eventID)
 {
-	ovGetCamImageForUnityNative(g_callTexture2DLeft, g_callTexture2DRight);
+	if (g_calls.size() == 0)
+		return;
+	GLRenderCall call= g_calls.front();
+	g_calls.pop_front();
+	ovGetCamImageForUnityNative(call.ovOvrvision, call.callTexture2DLeft, call.callTexture2DRight);
 }
-CSHARP_EXPORT UnityRenderNative __stdcall ovGetCamImageForUnityNativeGLCall(void* pTexPtr_Left, void* pTexPtr_Right)
+CSHARP_EXPORT UnityRenderNative __stdcall ovGetCamImageForUnityNativeGLCall(OVR::OvrvisionPro*g_ovOvrvision, void* pTexPtr_Left, void* pTexPtr_Right)
 {
-	g_callTexture2DLeft = pTexPtr_Left;
-	g_callTexture2DRight = pTexPtr_Right;
+	GLRenderCall call;
+	
+	call.callTexture2DLeft = pTexPtr_Left;
+	call.callTexture2DRight = pTexPtr_Right;
+	call.ovOvrvision = g_ovOvrvision;
+	g_calls.push_back(call);
 	return ovGetCamImageForUnityNativeEvent;
 }
 
@@ -379,7 +347,7 @@ CSHARP_EXPORT int ovPutHandInFrontOfCamera(unsigned char thres_less, unsigned ch
 }
 
 //Get image width
-CSHARP_EXPORT int ovGetImageWidth()
+CSHARP_EXPORT int ovGetImageWidth(OVR::OvrvisionPro*g_ovOvrvision)
 {
 	if(g_ovOvrvision==NULL)
 		return 0;
@@ -388,7 +356,7 @@ CSHARP_EXPORT int ovGetImageWidth()
 }
 
 //Get image height
-CSHARP_EXPORT int ovGetImageHeight()
+CSHARP_EXPORT int ovGetImageHeight(OVR::OvrvisionPro*g_ovOvrvision)
 {
 	if(g_ovOvrvision==NULL)
 		return 0;
@@ -397,7 +365,7 @@ CSHARP_EXPORT int ovGetImageHeight()
 }
 
 //Get image framerate
-CSHARP_EXPORT int ovGetImageRate()
+CSHARP_EXPORT int ovGetImageRate(OVR::OvrvisionPro*g_ovOvrvision)
 {
 	if(g_ovOvrvision==NULL)
 		return 0;
@@ -406,7 +374,7 @@ CSHARP_EXPORT int ovGetImageRate()
 }
 
 //Get buffer size
-CSHARP_EXPORT int ovGetBufferSize()
+CSHARP_EXPORT int ovGetBufferSize(OVR::OvrvisionPro*g_ovOvrvision)
 {
 	if(g_ovOvrvision==NULL)
 		return 0;
@@ -415,7 +383,7 @@ CSHARP_EXPORT int ovGetBufferSize()
 }
 
 //Get buffer size
-CSHARP_EXPORT int ovGetPixelSize()
+CSHARP_EXPORT int ovGetPixelSize(OVR::OvrvisionPro*g_ovOvrvision)
 {
 	if (g_ovOvrvision == NULL)
 		return 0;
@@ -424,7 +392,7 @@ CSHARP_EXPORT int ovGetPixelSize()
 }
 
 //Set exposure
-CSHARP_EXPORT void ovSetExposure(int value)
+CSHARP_EXPORT void ovSetExposure(OVR::OvrvisionPro*g_ovOvrvision,int value)
 {
 	if(g_ovOvrvision==NULL)
 		return;
@@ -432,7 +400,7 @@ CSHARP_EXPORT void ovSetExposure(int value)
 	g_ovOvrvision->SetCameraExposure(value);
 }
 //Set exposure per sec
-CSHARP_EXPORT int ovSetExposurePerSec(float fps)
+CSHARP_EXPORT int ovSetExposurePerSec(OVR::OvrvisionPro*g_ovOvrvision, float fps)
 {
 	if (g_ovOvrvision == NULL)
 		return 0;
@@ -442,7 +410,7 @@ CSHARP_EXPORT int ovSetExposurePerSec(float fps)
 
 
 //Set gain
-CSHARP_EXPORT void ovSetGain(int value)
+CSHARP_EXPORT void ovSetGain(OVR::OvrvisionPro*g_ovOvrvision, int value)
 {
 	if(g_ovOvrvision==NULL)
 		return;
@@ -451,7 +419,7 @@ CSHARP_EXPORT void ovSetGain(int value)
 }
 
 //Set WhiteBalanceR ( manual only )
-CSHARP_EXPORT void ovSetWhiteBalanceR(int value)
+CSHARP_EXPORT void ovSetWhiteBalanceR(OVR::OvrvisionPro*g_ovOvrvision, int value)
 {
 	if(g_ovOvrvision==NULL)
 		return;
@@ -460,7 +428,7 @@ CSHARP_EXPORT void ovSetWhiteBalanceR(int value)
 }
 
 //Set WhiteBalanceG ( manual only )
-CSHARP_EXPORT void ovSetWhiteBalanceG(int value)
+CSHARP_EXPORT void ovSetWhiteBalanceG(OVR::OvrvisionPro*g_ovOvrvision, int value)
 {
 	if(g_ovOvrvision==NULL)
 		return;
@@ -469,7 +437,7 @@ CSHARP_EXPORT void ovSetWhiteBalanceG(int value)
 }
 
 //Set WhiteBalanceB ( manual only )
-CSHARP_EXPORT void ovSetWhiteBalanceB(int value)
+CSHARP_EXPORT void ovSetWhiteBalanceB(OVR::OvrvisionPro*g_ovOvrvision, int value)
 {
 	if(g_ovOvrvision==NULL)
 		return;
@@ -478,7 +446,7 @@ CSHARP_EXPORT void ovSetWhiteBalanceB(int value)
 }
 
 //Set WhiteBalance Auto
-CSHARP_EXPORT void ovSetWhiteBalanceAuto(int value)
+CSHARP_EXPORT void ovSetWhiteBalanceAuto(OVR::OvrvisionPro*g_ovOvrvision, int value)
 {
 	if (g_ovOvrvision == NULL)
 		return;
@@ -487,7 +455,7 @@ CSHARP_EXPORT void ovSetWhiteBalanceAuto(int value)
 }
 
 //Set Backlight Compensation
-CSHARP_EXPORT void ovSetBLC(int value)
+CSHARP_EXPORT void ovSetBLC(OVR::OvrvisionPro*g_ovOvrvision, int value)
 {
 	if (g_ovOvrvision == NULL)
 		return;
@@ -496,7 +464,7 @@ CSHARP_EXPORT void ovSetBLC(int value)
 }
 
 //Set Camera SyncMode
-CSHARP_EXPORT void ovSetCamSyncMode(int value)
+CSHARP_EXPORT void ovSetCamSyncMode(OVR::OvrvisionPro*g_ovOvrvision, int value)
 {
 	if (g_ovOvrvision == NULL)
 		return;
@@ -505,7 +473,7 @@ CSHARP_EXPORT void ovSetCamSyncMode(int value)
 }
 
 //Get exposure
-CSHARP_EXPORT int ovGetExposure()
+CSHARP_EXPORT int ovGetExposure(OVR::OvrvisionPro*g_ovOvrvision)
 {
 	if(g_ovOvrvision==NULL)
 		return 0;
@@ -514,7 +482,7 @@ CSHARP_EXPORT int ovGetExposure()
 }
 
 //Get gain
-CSHARP_EXPORT int ovGetGain()
+CSHARP_EXPORT int ovGetGain(OVR::OvrvisionPro*g_ovOvrvision)
 {
 	if(g_ovOvrvision==NULL)
 		return 0;
@@ -523,7 +491,7 @@ CSHARP_EXPORT int ovGetGain()
 }
 
 //Get whiteBalanceR
-CSHARP_EXPORT int ovGetWhiteBalanceR()
+CSHARP_EXPORT int ovGetWhiteBalanceR(OVR::OvrvisionPro*g_ovOvrvision)
 {
 	if(g_ovOvrvision==NULL)
 		return 0;
@@ -532,7 +500,7 @@ CSHARP_EXPORT int ovGetWhiteBalanceR()
 }
 
 //Get whiteBalanceG
-CSHARP_EXPORT int ovGetWhiteBalanceG()
+CSHARP_EXPORT int ovGetWhiteBalanceG(OVR::OvrvisionPro*g_ovOvrvision)
 {
 	if(g_ovOvrvision==NULL)
 		return 0;
@@ -541,7 +509,7 @@ CSHARP_EXPORT int ovGetWhiteBalanceG()
 }
 
 //Get whiteBalanceB
-CSHARP_EXPORT int ovGetWhiteBalanceB()
+CSHARP_EXPORT int ovGetWhiteBalanceB(OVR::OvrvisionPro*g_ovOvrvision)
 {
 	if(g_ovOvrvision==NULL)
 		return 0;
@@ -549,7 +517,7 @@ CSHARP_EXPORT int ovGetWhiteBalanceB()
 	return g_ovOvrvision->GetCameraWhiteBalanceB();
 }
 
-CSHARP_EXPORT int ovGetWhiteBalanceAuto()
+CSHARP_EXPORT int ovGetWhiteBalanceAuto(OVR::OvrvisionPro*g_ovOvrvision)
 {
 	if (g_ovOvrvision == NULL)
 		return 0;
@@ -558,7 +526,7 @@ CSHARP_EXPORT int ovGetWhiteBalanceAuto()
 }
 
 //Get Backlight Compensation
-CSHARP_EXPORT int ovGetBLC()
+CSHARP_EXPORT int ovGetBLC(OVR::OvrvisionPro*g_ovOvrvision)
 {
 	if (g_ovOvrvision == NULL)
 		return 0;
@@ -567,7 +535,7 @@ CSHARP_EXPORT int ovGetBLC()
 }
 
 //Get focalPoint
-CSHARP_EXPORT float ovGetFocalPoint()
+CSHARP_EXPORT float ovGetFocalPoint(OVR::OvrvisionPro*g_ovOvrvision)
 {
 	if(g_ovOvrvision==NULL)
 		return 0;
@@ -576,7 +544,7 @@ CSHARP_EXPORT float ovGetFocalPoint()
 }
 
 //Get HMD Right-eye Gap
-CSHARP_EXPORT float ovGetHMDRightGap(int at)
+CSHARP_EXPORT float ovGetHMDRightGap(OVR::OvrvisionPro*g_ovOvrvision,int at)
 {
 	if(g_ovOvrvision==NULL)
 		return 0;
@@ -586,16 +554,22 @@ CSHARP_EXPORT float ovGetHMDRightGap(int at)
 
 
 //Save parameter
-CSHARP_EXPORT int ovSaveCamStatusToEEPROM()
+CSHARP_EXPORT int ovSaveCamStatusToEEPROM(OVR::OvrvisionPro*g_ovOvrvision)
 {
 	if(g_ovOvrvision==NULL)
 		return 0;
 
 	return g_ovOvrvision->CameraParamSaveEEPROM();
 }
+CSHARP_EXPORT void ovLoadCameraConfiguration(OVR::OvrvisionPro*g_ovOvrvision, const char* str)
+{
+	if (g_ovOvrvision == NULL)
+		return;
+	g_ovOvrvision->SetOVRSettings(str);
+}
 
 ////////////// Ovrvision AR //////////////
-
+/*
 // void ovARRender(void)
 CSHARP_EXPORT void ovARRender()
 {
@@ -764,13 +738,7 @@ CSHARP_EXPORT int ovCalibGetImageCount()
 	return g_ovOvrvisionCalib->GetImageCount();
 }
 
-
-CSHARP_EXPORT void ovLoadCameraConfiguration(const char* str)
-{
-	if (g_ovOvrvision == NULL)
-		return ;
-	g_ovOvrvision->SetOVRSettings(str);
-}
+*/
 
 #ifdef __cplusplus
 }

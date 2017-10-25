@@ -158,7 +158,7 @@ public:
 	/*!	@brief This function gets data from OvrvisionPro inside.
 	@param qt Set an image processing method. */
 	bool PreStoreCamData(OVR::Camqt qt);
-	bool PreStoreMemoryData(OVR::Camqt qt, const unsigned char* pFrame);
+	bool PreStoreMemoryData(OVR::Camqt qt, const unsigned char* pFrame, bool remapData);
 	/*!	@brief Gets the image data of 32 bits of BGRA form.
 	@param eye OV_CAMEYE_LEFT or OV_CAMEYE_RIGHT  */
 	unsigned char* GetCamImageBGRA(OVR::Cameye eye);
