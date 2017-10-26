@@ -690,13 +690,13 @@ bool OvrvisionPro::PreStoreMemoryData(OVR::Camqt qt, const uchar* pFrame, bool r
 	if (remapData)
 	{
 		int offset = m_width*m_height;
-		
+		uchar* ptr = (uchar*)m_pFrame;
 		//fix data mapping
-		for (int y = 0; y < m_height; y++) {
-			for (int x = 0; x < m_width; x++) {
-				int ps = (y * m_width) + x;
-				m_pFrame[ps] = (pFrame[ps + offset] << 8) | (pFrame[ps]);
-			}
+		int count = m_width*m_height;
+		for (int i = 0; i < count;++i){
+			*ptr = (pFrame[i ] );
+			*(ptr + 1) = (pFrame[i + offset]);
+			ptr += 2;
 		}/*
 		uchar* dst = (uchar*)m_pFrame;
 		int len = m_width*m_height/2 ;
