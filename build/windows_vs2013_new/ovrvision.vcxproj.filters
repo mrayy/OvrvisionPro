@@ -103,6 +103,9 @@
     <ClCompile Include="..\..\src\lib_src\RenderAPI_OpenGLCoreES.cpp">
       <Filter>ソース ファイル\C#</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\lib_src\WinMutex.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\include\ovrvision_ar.h">
@@ -200,6 +203,9 @@
     </ClInclude>
     <ClInclude Include="..\..\src\lib_src\RenderAPI.h">
       <Filter>ソース ファイル\C#</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\lib_src\WinMutex.h">
+      <Filter>ソース ファイル</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

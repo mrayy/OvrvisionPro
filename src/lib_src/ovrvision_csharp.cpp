@@ -63,6 +63,7 @@
 #endif
 
 #include <list>
+#include "WinMutex.h"
 
 #if SUPPORT_OPENGL
 	#if WIN32
@@ -103,6 +104,7 @@ struct GLRenderCall
 };
 
 std::list<GLRenderCall> g_calls;
+WinMutex g_mutex;
 
 /////////// EXPORT FUNCTION ///////////
 
@@ -323,10 +325,14 @@ CSHARP_EXPORT void ovGetCamImageForUnityNative(OVR::OvrvisionPro*g_ovOvrvision, 
 //for GL.IssuePluginEvent
 static void __stdcall ovGetCamImageForUnityNativeEvent(int eventID)
 {
-	if (g_calls.size() == 0)
-		return;
-	GLRenderCall call= g_calls.front();
-	g_calls.pop_front();
+	GLRenderCall call;
+	{
+		ScopedLock l(&g_mutex);
+		if (g_calls.size() == 0)
+			return;
+		call = g_calls.front();
+		g_calls.pop_front();
+	}
 	ovGetCamImageForUnityNative(call.ovOvrvision, call.callTexture2DLeft, call.callTexture2DRight);
 }
 CSHARP_EXPORT UnityRenderNative __stdcall ovGetCamImageForUnityNativeGLCall(OVR::OvrvisionPro*g_ovOvrvision, void* pTexPtr_Left, void* pTexPtr_Right)
@@ -336,7 +342,10 @@ CSHARP_EXPORT UnityRenderNative __stdcall ovGetCamImageForUnityNativeGLCall(OVR:
 	call.callTexture2DLeft = pTexPtr_Left;
 	call.callTexture2DRight = pTexPtr_Right;
 	call.ovOvrvision = g_ovOvrvision;
-	g_calls.push_back(call);
+	{
+		ScopedLock l(&g_mutex);
+		g_calls.push_back(call);
+	}
 	return ovGetCamImageForUnityNativeEvent;
 }
 
