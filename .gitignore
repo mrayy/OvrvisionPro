@@ -1,5 +1,4 @@
 .metadata
-<<<<<<< HEAD
 /bin/calibtool
 /bin/csharp_x86
 /bin/x64
@@ -19,4 +18,6 @@ build/windows_vs2013_new/.vs/ovrvision/v15/Browse.VC.db
 build/windows_vs2013_new/ovrvision.opensdf
 build/windows_vs2013_new/ovrvision.sdf
 build/windows_vs2013_new/ovrvision.sdf
+build/windows_vs2013_new/ovrvision.sdf
+build/windows_vs2013_new/ovrvision/*
 build/windows_vs2013_new/ovrvision.sdf
