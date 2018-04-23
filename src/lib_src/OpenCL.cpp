@@ -14,6 +14,7 @@
 
 #include <stdio.h>
 #include <sys/stat.h>
+#include <opencv2/opencv.hpp>
 #include <stdexcept>
 
 #include "OvrvisionProCL.h"
@@ -232,7 +233,7 @@ namespace OVR
 		236, 236, 237, 238, 238, 239, 240, 240,
 		241, 241, 242, 243, 243, 244, 245, 245,
 		246, 246, 247, 248, 248, 249, 249, 250,
-		251, 251, 252, 253, 253, 254, 254, 255 }, 
+		251, 251, 252, 253, 253, 254, 254, 255 },
 	};
 	static const uchar toneMap[3][256] =
 	{
@@ -267,7 +268,7 @@ namespace OVR
 		201, 203, 205, 206, 208, 210, 211, 213,
 		215, 216, 218, 220, 222, 223, 225, 227,
 		229, 230, 232, 234, 236, 237, 239, 241,
-		243, 244, 246, 248, 250, 251, 253, 255},
+		243, 244, 246, 248, 250, 251, 253, 255 },
 		{ 0, 0, 1, 1, 2, 2, 3, 3,
 		4, 4, 5, 5, 6, 6, 7, 7,
 		8, 8, 9, 9, 10, 11, 11, 12,
@@ -299,7 +300,7 @@ namespace OVR
 		201, 203, 205, 206, 208, 210, 211, 213,
 		215, 216, 218, 220, 222, 223, 225, 227,
 		229, 230, 232, 234, 236, 237, 239, 241,
-		243, 244, 246, 248, 250, 251, 253, 255},
+		243, 244, 246, 248, 250, 251, 253, 255 },
 		{ 0, 0, 1, 1, 2, 2, 3, 3,
 		4, 4, 5, 5, 6, 6, 7, 7,
 		8, 8, 9, 9, 10, 11, 11, 12,
@@ -331,97 +332,97 @@ namespace OVR
 		201, 203, 205, 206, 208, 210, 211, 213,
 		215, 216, 218, 220, 222, 223, 225, 227,
 		229, 230, 232, 234, 236, 237, 239, 241,
-		243, 244, 246, 248, 250, 251, 253, 255},
+		243, 244, 246, 248, 250, 251, 253, 255 },
 	};
 #pragma endregion
 
 	//namespace OPENCL
 	//{
 #pragma region CONSTRUCTOR_DESTRUCTOR
-		// Constructor
+	// Constructor
 	OvrvisionProOpenCL::OvrvisionProOpenCL(int width, int height, enum SHARING_MODE mode, void *pDevice)
+	{
+		_width = width;
+		_height = height;
+		_sharing = mode;
+
+		if (SelectGPU("", "OpenCL C 1.2") == NULL) // Find OpenCL(version 1.2 and above) device 
 		{
-			_width = width;
-			_height = height;
-			_sharing = mode;
-
-			if (SelectGPU("", "OpenCL C 1.2") == NULL) // Find OpenCL(version 1.2 and above) device 
-			{
-                throw std::runtime_error("Insufficient OpenCL version");
-			}
+			throw std::runtime_error("Insufficient OpenCL version");
+		}
 #ifdef MACOSX
-			//pclGetGLContextInfoKHR = GETFUNCTION(_platformId, clGetGLContextInfoKHR);
+		//pclGetGLContextInfoKHR = GETFUNCTION(_platformId, clGetGLContextInfoKHR);
 #else
-			//pclGetGLContextInfoKHR = GETFUNCTION(_platformId, clGetGLContextInfoKHR);
+		//pclGetGLContextInfoKHR = GETFUNCTION(_platformId, clGetGLContextInfoKHR);
 #endif
-			CreateContext(mode, pDevice);
-			_commandQueue = clCreateCommandQueue(_context, _deviceId, 0, &_errorCode);
-			SAMPLE_CHECK_ERRORS(_errorCode);
-			// UMat seems to have extra overhead of data transfer, so WE USE NATIVE OPENCL IMAGE2D
-			memset(&_desc_scaled, 0, sizeof(_desc_scaled));
-			_desc_scaled.image_type = CL_MEM_OBJECT_IMAGE2D;
-			cl_image_desc desc = { CL_MEM_OBJECT_IMAGE2D, _width, _height, 0, 0, 0, 0, 0, 0, NULL };
-			cl_image_desc desc_half = { CL_MEM_OBJECT_IMAGE2D, _width / 2, _height / 2, 0, 0, 0, 0, 0, 0, NULL };
-			cl_image_desc desc_tone = { CL_MEM_OBJECT_IMAGE2D, 256, 3, 0, 0, 0, 0, 0, 0, NULL };
+		CreateContext(mode, pDevice);
+		_commandQueue = clCreateCommandQueue(_context, _deviceId, 0, &_errorCode);
+		SAMPLE_CHECK_ERRORS(_errorCode);
+		// UMat seems to have extra overhead of data transfer, so WE USE NATIVE OPENCL IMAGE2D
+		memset(&_desc_scaled, 0, sizeof(_desc_scaled));
+		_desc_scaled.image_type = CL_MEM_OBJECT_IMAGE2D;
+		cl_image_desc desc = { CL_MEM_OBJECT_IMAGE2D, _width, _height, 0, 0, 0, 0, 0, 0, NULL };
+		cl_image_desc desc_half = { CL_MEM_OBJECT_IMAGE2D, _width / 2, _height / 2, 0, 0, 0, 0, 0, 0, NULL };
+		cl_image_desc desc_tone = { CL_MEM_OBJECT_IMAGE2D, 256, 3, 0, 0, 0, 0, 0, 0, NULL };
 
-			_src = clCreateImage(_context, CL_MEM_READ_ONLY, &_format16UC1, &desc, 0, &_errorCode);
-			SAMPLE_CHECK_ERRORS(_errorCode);
+		_src = clCreateImage(_context, CL_MEM_READ_ONLY, &_format16UC1, &desc, 0, &_errorCode);
+		SAMPLE_CHECK_ERRORS(_errorCode);
 
-			_remapAvailable = false;
+		_remapAvailable = false;
 
-			_mapX[0] = new Mat();
-			_mapY[0] = new Mat();
-			_mapX[1] = new Mat();
-			_mapY[1] = new Mat();
-			_skinmask[0] = new Mat(_height / 2, _width / 2, CV_8UC1);
-			_skinmask[1] = new Mat(_height / 2, _width / 2, CV_8UC1);
+		_mapX[0] = new Mat();
+		_mapY[0] = new Mat();
+		_mapX[1] = new Mat();
+		_mapY[1] = new Mat();
+		_skinmask[0] = new Mat(_height / 2, _width / 2, CV_8UC1);
+		_skinmask[1] = new Mat(_height / 2, _width / 2, CV_8UC1);
 
-			_l = clCreateImage(_context, CL_MEM_READ_WRITE, &_format8UC4, &desc, 0, &_errorCode);
-			_r = clCreateImage(_context, CL_MEM_READ_WRITE, &_format8UC4, &desc, 0, &_errorCode);
-			_L = clCreateImage(_context, CL_MEM_READ_WRITE, &_format8UC4, &desc, 0, &_errorCode);
-			_R = clCreateImage(_context, CL_MEM_READ_WRITE, &_format8UC4, &desc, 0, &_errorCode);
-			_mx[0] = clCreateImage(_context, CL_MEM_READ_ONLY, &_formatMap, &desc, 0, &_errorCode);
-			_my[0] = clCreateImage(_context, CL_MEM_READ_ONLY, &_formatMap, &desc, 0, &_errorCode);
-			_mx[1] = clCreateImage(_context, CL_MEM_READ_ONLY, &_formatMap, &desc, 0, &_errorCode);
-			_my[1] = clCreateImage(_context, CL_MEM_READ_ONLY, &_formatMap, &desc, 0, &_errorCode);
-			_reducedL = clCreateImage(_context, CL_MEM_READ_WRITE, &_format8UC4, &desc_half, 0, &_errorCode);
-			_reducedR = clCreateImage(_context, CL_MEM_READ_WRITE, &_format8UC4, &desc_half, 0, &_errorCode);
-			_toneMap = clCreateImage(_context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, &_format8UC1, &desc_tone, (void *)toneMap, &_errorCode);
-			_texture[0] = NULL;
-			_texture[1] = NULL;
+		_l = clCreateImage(_context, CL_MEM_READ_WRITE, &_format8UC4, &desc, 0, &_errorCode);
+		_r = clCreateImage(_context, CL_MEM_READ_WRITE, &_format8UC4, &desc, 0, &_errorCode);
+		_L = clCreateImage(_context, CL_MEM_READ_WRITE, &_format8UC4, &desc, 0, &_errorCode);
+		_R = clCreateImage(_context, CL_MEM_READ_WRITE, &_format8UC4, &desc, 0, &_errorCode);
+		_mx[0] = clCreateImage(_context, CL_MEM_READ_ONLY, &_formatMap, &desc, 0, &_errorCode);
+		_my[0] = clCreateImage(_context, CL_MEM_READ_ONLY, &_formatMap, &desc, 0, &_errorCode);
+		_mx[1] = clCreateImage(_context, CL_MEM_READ_ONLY, &_formatMap, &desc, 0, &_errorCode);
+		_my[1] = clCreateImage(_context, CL_MEM_READ_ONLY, &_formatMap, &desc, 0, &_errorCode);
+		_reducedL = clCreateImage(_context, CL_MEM_READ_WRITE, &_format8UC4, &desc_half, 0, &_errorCode);
+		_reducedR = clCreateImage(_context, CL_MEM_READ_WRITE, &_format8UC4, &desc_half, 0, &_errorCode);
+		_toneMap = clCreateImage(_context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, &_format8UC1, &desc_tone, (void *)toneMap, &_errorCode);
+		_texture[0] = NULL;
+		_texture[1] = NULL;
 
-			_deviceExtensions = NULL;
-			CreateProgram();
-			Prepare4Sharing();
-			SetScale(HALF);
-			_released = false;
-			_calibration = false;
-			_frameCounter = 0;
+		_deviceExtensions = NULL;
+		CreateProgram();
+		Prepare4Sharing();
+		SetScale(HALF);
+		_released = false;
+		_calibration = false;
+		_frameCounter = 0;
 
-			// Skin default values
-			_h_low = 13;
-			_h_high = 21;
-			_s_low = 88;
-			_s_high = 136;
-			_skinThreshold = 0;
-			_histgram[0] = new Mat(256, 256, CV_32SC1);
-			_histgram[1] = new Mat(256, 256, CV_32SC1);
+		// Skin default values
+		_h_low = 13;
+		_h_high = 21;
+		_s_low = 88;
+		_s_high = 136;
+		_skinThreshold = 0;
+		_histgram[0] = new Mat(256, 256, CV_32SC1);
+		_histgram[1] = new Mat(256, 256, CV_32SC1);
 
-			// Inter frame object tracking 
-			//_kalman[0] = KalmanFilter(4, 2);
-			//_kalman[1] = KalmanFilter(4, 2);
-			//setIdentity(_kalman[0].measurementMatrix, cvRealScalar(1.0));
-			//setIdentity(_kalman[0].processNoiseCov, cvRealScalar(1e-5));
-			//setIdentity(_kalman[0].measurementNoiseCov, cvRealScalar(0.1));
-			//setIdentity(_kalman[0].errorCovPost, cvRealScalar(1.0));
-			
-			//kalman->DynamMatr[0] = 1.0; kalman->DynamMatr[1] = 0.0; kalman->DynamMatr[2] = 1.0; kalman->DynamMatr[3] = 0.0;
-			//kalman->DynamMatr[4] = 0.0; kalman->DynamMatr[5] = 1.0; kalman->DynamMatr[6] = 0.0; kalman->DynamMatr[7] = 1.0;
-			//kalman->DynamMatr[8] = 0.0; kalman->DynamMatr[9] = 0.0; kalman->DynamMatr[10] = 1.0; kalman->DynamMatr[11] = 0.0;
-			//kalman->DynamMatr[12] = 0.0; kalman->DynamMatr[13] = 0.0; kalman->DynamMatr[14] = 0.0; kalman->DynamMatr[15] = 1.0;
+		// Inter frame object tracking 
+		//_kalman[0] = KalmanFilter(4, 2);
+		//_kalman[1] = KalmanFilter(4, 2);
+		//setIdentity(_kalman[0].measurementMatrix, cvRealScalar(1.0));
+		//setIdentity(_kalman[0].processNoiseCov, cvRealScalar(1e-5));
+		//setIdentity(_kalman[0].measurementNoiseCov, cvRealScalar(0.1));
+		//setIdentity(_kalman[0].errorCovPost, cvRealScalar(1.0));
+
+		//kalman->DynamMatr[0] = 1.0; kalman->DynamMatr[1] = 0.0; kalman->DynamMatr[2] = 1.0; kalman->DynamMatr[3] = 0.0;
+		//kalman->DynamMatr[4] = 0.0; kalman->DynamMatr[5] = 1.0; kalman->DynamMatr[6] = 0.0; kalman->DynamMatr[7] = 1.0;
+		//kalman->DynamMatr[8] = 0.0; kalman->DynamMatr[9] = 0.0; kalman->DynamMatr[10] = 1.0; kalman->DynamMatr[11] = 0.0;
+		//kalman->DynamMatr[12] = 0.0; kalman->DynamMatr[13] = 0.0; kalman->DynamMatr[14] = 0.0; kalman->DynamMatr[15] = 1.0;
 	}
 
-		// Destructor
+	// Destructor
 	OvrvisionProOpenCL::~OvrvisionProOpenCL()
 	{
 		if (!_released)
@@ -572,7 +573,7 @@ namespace OVR
 			return true;
 		}
 	}
-	 
+
 	// Select GPU device
 	cl_device_id OvrvisionProOpenCL::SelectGPU(const char *platform, const char *version)
 	{
@@ -601,7 +602,7 @@ namespace OVR
 				0,
 				0,
 				&num_of_devices
-				))
+			))
 			{
 				cl_device_id *id = new cl_device_id[num_of_devices];
 				err = clGetDeviceIDs(
@@ -610,7 +611,7 @@ namespace OVR
 					num_of_devices,
 					id,
 					0
-					);
+				);
 				//SAMPLE_CHECK_ERRORS(err);
 				for (cl_uint j = 0; j < num_of_devices; j++)
 				{
@@ -619,7 +620,7 @@ namespace OVR
 					char buffer[32];
 					if (clGetDeviceInfo(id[j], CL_DEVICE_OPENCL_C_VERSION, sizeof(buffer), buffer, &length) == CL_SUCCESS)
 					{
-						char devicename[80];
+						char devicename[128];
 						cl_uint freq, units;
 						clGetDeviceInfo(id[j], CL_DEVICE_MAX_CLOCK_FREQUENCY, sizeof(cl_uint), &freq, &length);
 						clGetDeviceInfo(id[j], CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(cl_uint), &units, &length);
@@ -634,12 +635,13 @@ namespace OVR
 								maxFreq = freq;
 								maxUnits = units;
 								device_found = true;
+
+								//NVIDIA or AMD priority
+								clGetPlatformInfo(_platformId, CL_PLATFORM_NAME, sizeof(devicename), devicename, NULL);
+								if (strstr(devicename, "NVIDIA") != NULL) maxFreq *= 100;
+								if (strstr(devicename, "Advanced Micro Devices") != NULL) maxFreq *= 100;
+								if (strstr(devicename, "AMD") != NULL) maxFreq *= 100;
 							}
-						}
-						else
-						{
-							//clGetDeviceInfo(_deviceId, CL_DEVICE_NAME, sizeof(buffer), buffer, NULL);
-							printf("%d Compute units %dMHz : %s\n", units, freq, buffer);
 						}
 					}
 				}
@@ -648,7 +650,7 @@ namespace OVR
 		}
 		if (!device_found)
 		{
-            throw std::runtime_error("GPU NOT FOUND.\nRequired OpenCL 1.2 or above.\n");
+			throw std::runtime_error("GPU NOT FOUND.\nRequired OpenCL 1.2 or above.\n");
 		}
 		return _deviceId;
 	}
@@ -731,7 +733,7 @@ namespace OVR
 				{
 					cl_device_type t;
 					clGetDeviceInfo(devices[k], CL_DEVICE_TYPE, sizeof(t), &t, NULL);
-					//if (t == CL_DEVICE_TYPE_GPU)
+					if (t == CL_DEVICE_TYPE_GPU)
 					{
 						clGetDeviceInfo(devices[k], CL_DEVICE_NAME, sizeof(devicename), devicename, NULL);
 						char buffer[32];
@@ -887,7 +889,7 @@ namespace OVR
 		{
 #ifdef WIN32
 		case OPENGL:
- 			if (opengl_props[3] != NULL && opengl_props[5] != NULL)
+			if (opengl_props[3] != NULL && opengl_props[5] != NULL)
 			{
 				_context = clCreateContext(opengl_props, 1, &_deviceId, createContextCallback, NULL, &_errorCode);
 			}
@@ -1028,7 +1030,7 @@ namespace OVR
 		}
 		return false;
 #else
-        return false;
+		return false;
 #endif
 	}
 
@@ -1267,7 +1269,7 @@ namespace OVR
 		}
 	}
 
-//#if defined(WIN32) || defined(LINUX) || defined(MACOSX)
+	//#if defined(WIN32) || defined(LINUX) || defined(MACOSX)
 	// OpenGL shared texture
 	// Reference: http://www.isus.jp/article/idz/vc/sharing-surfaces-between-opencl-and-opengl43/
 	cl_mem OvrvisionProOpenCL::CreateGLTexture2D(GLuint texture, int width, int height)
@@ -1302,7 +1304,7 @@ namespace OVR
 #endif
 		return image;
 	}
-//#endif
+	//#endif
 
 
 #ifdef WIN32
@@ -1311,13 +1313,13 @@ namespace OVR
 	{
 		/* Desciptor of texture must be R8B8G8A8_UINT format
 		D3D11_TEXTURE2D_DESC texsture_desc = {
-			width,				// Width
-			height,				// Height
-			1,								// MipLevels
-			1,								// ArraySize
-			DXGI_FORMAT_R8G8B8A8_UINT,	// Format
-			{ 1 },							// SampleDesc.Count
-			D3D11_USAGE_DEFAULT,			// Usage
+		width,				// Width
+		height,				// Height
+		1,								// MipLevels
+		1,								// ArraySize
+		DXGI_FORMAT_R8G8B8A8_UINT,	// Format
+		{ 1 },							// SampleDesc.Count
+		D3D11_USAGE_DEFAULT,			// Usage
 		};
 		*/
 		if (_vendorD3D11 == NVIDIA)
@@ -1628,7 +1630,7 @@ namespace OVR
 							finger++;
 						}
 					}
-					
+
 					// Make histgram of HS values
 					if (4 < finger)
 					{
@@ -1931,9 +1933,13 @@ namespace OVR
 		clGetImageInfo(src, CL_IMAGE_WIDTH, sizeof(width), &width, NULL);
 		clGetImageInfo(src, CL_IMAGE_HEIGHT, sizeof(height), &height, NULL);
 
-		int scale = 2;
+		int scale = 1;
 		switch (scaling)
 		{
+		case ORIGINAL:
+			scale = 1;
+			break;
+
 		case HALF:
 			scale = 2;
 			break;
@@ -2002,11 +2008,15 @@ namespace OVR
 			_errorCode = clEnqueueNDRangeKernel(_commandQueue, _convertGrayscale, 2, NULL, _scaledRegion, NULL, 0, NULL, event_r);
 			SAMPLE_CHECK_ERRORS(_errorCode);
 		}
-		else 
+		else
 		{
 			uint width = _width, height = _height;
 			switch (scaling)
 			{
+			case OVR::ORIGINAL:
+				width /= 1;
+				height /= 1;
+				break;
 			case OVR::HALF:
 				width /= 2;
 				height /= 2;
@@ -2034,7 +2044,6 @@ namespace OVR
 			cl_event event[2];
 			Resize(_l, l, scaling, &event[0]);
 			Resize(_r, r, scaling, &event[1]);
-
 			// Convert to HSV
 			//__kernel void convertGrayscale( 
 			//		__read_only image2d_t src,	// CL_UNSIGNED_INT8 x 4
@@ -2063,6 +2072,10 @@ namespace OVR
 		uint width = _width, height = _height;
 		switch (scaling)
 		{
+		case OVR::ORIGINAL:
+			width /= 1;
+			height /= 1;
+			break;
 		case OVR::HALF:
 			width /= 2;
 			height /= 2;
@@ -2408,25 +2421,25 @@ namespace OVR
 	/*
 	void OvrvisionProOpenCL::Demosaic(const ushort *src, Mat &left, Mat &right)
 	{
-		size_t origin[3] = { 0, 0, 0 };
-		size_t region[3] = { _width, _height, 1 };
-		cl_event execute;
+	size_t origin[3] = { 0, 0, 0 };
+	size_t region[3] = { _width, _height, 1 };
+	cl_event execute;
 
-		Demosaic(src, &execute);
+	Demosaic(src, &execute);
 
-		// Read result
-		_errorCode = clEnqueueReadImage(_commandQueue, _l, CL_TRUE, origin, region, _width * sizeof(uchar) * 4, 0, left.ptr(0), 1, &execute, NULL);
-		_errorCode = clEnqueueReadImage(_commandQueue, _r, CL_TRUE, origin, region, _width * sizeof(uchar) * 4, 0, right.ptr(0), 1, &execute, NULL);
+	// Read result
+	_errorCode = clEnqueueReadImage(_commandQueue, _l, CL_TRUE, origin, region, _width * sizeof(uchar) * 4, 0, left.ptr(0), 1, &execute, NULL);
+	_errorCode = clEnqueueReadImage(_commandQueue, _r, CL_TRUE, origin, region, _width * sizeof(uchar) * 4, 0, right.ptr(0), 1, &execute, NULL);
 
-		// Release temporaries
-		clReleaseEvent(execute);
+	// Release temporaries
+	clReleaseEvent(execute);
 	}
 
 	//
 	void OvrvisionProOpenCL::Demosaic(const Mat src, Mat &left, Mat &right)
 	{
-		const uchar *ptr = src.ptr(0);
-		Demosaic((const ushort *)ptr, left, right);
+	const uchar *ptr = src.ptr(0);
+	Demosaic((const ushort *)ptr, left, right);
 	}
 	*/
 
@@ -2576,25 +2589,25 @@ namespace OVR
 	/*
 	void OvrvisionProOpenCL::DemosaicRemap(const ushort *src, Mat &left, Mat &right)
 	{
-		size_t origin[3] = { 0, 0, 0 };
-		size_t region[3] = { _width, _height, 1 };
-		cl_event execute;
+	size_t origin[3] = { 0, 0, 0 };
+	size_t region[3] = { _width, _height, 1 };
+	cl_event execute;
 
-		DemosaicRemap(src, &execute);
-		// Read result
-		_errorCode = clEnqueueReadImage(_commandQueue, _l, CL_TRUE, origin, region, _width * sizeof(uchar) * 4, 0, left.ptr(0), 1, &execute, NULL);
-		_errorCode = clEnqueueReadImage(_commandQueue, _r, CL_TRUE, origin, region, _width * sizeof(uchar) * 4, 0, right.ptr(0), 1, &execute, NULL);
-		SAMPLE_CHECK_ERRORS(_errorCode);
+	DemosaicRemap(src, &execute);
+	// Read result
+	_errorCode = clEnqueueReadImage(_commandQueue, _l, CL_TRUE, origin, region, _width * sizeof(uchar) * 4, 0, left.ptr(0), 1, &execute, NULL);
+	_errorCode = clEnqueueReadImage(_commandQueue, _r, CL_TRUE, origin, region, _width * sizeof(uchar) * 4, 0, right.ptr(0), 1, &execute, NULL);
+	SAMPLE_CHECK_ERRORS(_errorCode);
 
-		// Release temporaries
-		clReleaseEvent(execute);
+	// Release temporaries
+	clReleaseEvent(execute);
 	}
 
 	//
 	void OvrvisionProOpenCL::DemosaicRemap(const Mat src, Mat &left, Mat &right)
 	{
-		const uchar *ptr = src.ptr(0);
-		DemosaicRemap((const ushort *)ptr, left, right);
+	const uchar *ptr = src.ptr(0);
+	DemosaicRemap((const ushort *)ptr, left, right);
 	}
 	*/
 #pragma endregion
