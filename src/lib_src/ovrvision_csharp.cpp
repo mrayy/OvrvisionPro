@@ -577,6 +577,143 @@ CSHARP_EXPORT void ovLoadCameraConfiguration(OVR::OvrvisionPro*g_ovOvrvision, co
 	g_ovOvrvision->SetOVRSettings(str);
 }
 
+// void ovARRender(void)
+CSHARP_EXPORT OVR::OvrvisionAR* ovARCreate(OVR::OvrvisionPro*g_ovOvrvision, float arMeter)
+{
+	return new OVR::OvrvisionAR(arMeter, g_ovOvrvision->GetCamWidth(),
+		g_ovOvrvision->GetCamHeight(),
+		g_ovOvrvision->GetCamFocalPoint());
+}
+
+CSHARP_EXPORT void ovARDestroy(OVR::OvrvisionAR* ar)
+{
+	delete ar;
+}
+
+CSHARP_EXPORT void ovARRender(OVR::OvrvisionAR* g_ovOvrvisionAR,OVR::OvrvisionPro*g_ovOvrvision )
+{
+	if (g_ovOvrvisionAR == NULL)
+		return;
+
+	unsigned char* pLeft = g_ovOvrvision->GetCamImageBGRA(OVR::OV_CAMEYE_LEFT);
+	g_ovOvrvisionAR->SetImageBGRA(pLeft);
+
+	//Rendering
+	g_ovOvrvisionAR->Render();
+}
+
+// int ovARGetData(float* mdata, int datasize) : mdata*FLOATDATA_DATA_OFFSET(10)
+CSHARP_EXPORT int ovARGetData( OVR::OvrvisionAR* g_ovOvrvisionAR,float* mdata, int datasize)
+{
+	int i;
+	if (g_ovOvrvisionAR == NULL)
+		return (-1);
+
+	if (mdata == NULL)
+		return (-1);
+
+	int marklen = g_ovOvrvisionAR->GetMarkerDataSize();
+	OVR::OvMarkerData* dt = g_ovOvrvisionAR->GetMarkerData();
+
+	for (i = 0; i < marklen; i++)
+	{
+		int ioffset = i * FLOATDATA_DATA_OFFSET;
+		if (i >= (datasize / FLOATDATA_DATA_OFFSET))
+			break;
+
+		mdata[ioffset + 0] = (float)dt[i].id;
+		mdata[ioffset + 1] = dt[i].translate.x;
+		mdata[ioffset + 2] = dt[i].translate.y;
+		mdata[ioffset + 3] = dt[i].translate.z;
+		mdata[ioffset + 4] = dt[i].quaternion.x;
+		mdata[ioffset + 5] = dt[i].quaternion.y;
+		mdata[ioffset + 6] = dt[i].quaternion.z;
+		mdata[ioffset + 7] = dt[i].quaternion.w;
+		mdata[ioffset + 8] = dt[i].centerPtOfImage.x;
+		mdata[ioffset + 9] = dt[i].centerPtOfImage.y;
+	}
+
+	return marklen;	//S_OK
+}
+
+// void ovARSetMarkerSize(float value)
+CSHARP_EXPORT void ovARSetMarkerSize(OVR::OvrvisionAR* g_ovOvrvisionAR,float value)
+{
+	if (g_ovOvrvisionAR == NULL)
+		return;
+
+	g_ovOvrvisionAR->SetMarkerSizeMeter(value);
+}
+
+// float ovARGetMarkerSize()
+CSHARP_EXPORT float ovARGetMarkerSize(OVR::OvrvisionAR* g_ovOvrvisionAR)
+{
+	if (g_ovOvrvisionAR == NULL)
+		return 0;
+
+	return g_ovOvrvisionAR->GetMarkerSizeMeter();
+}
+
+// void ov3DInstantTraking_Metaio(int value)
+CSHARP_EXPORT void ov3DInstantTraking_Metaio(OVR::OvrvisionAR* g_ovOvrvisionAR,int value)
+{
+	if (g_ovOvrvisionAR == NULL)
+		return;
+
+	g_ovOvrvisionAR->SetInstantTraking((bool)value);
+}
+
+////////////// Ovrvision Tracking //////////////
+
+CSHARP_EXPORT OVR::OvrvisionTracking* ovTrackCreate(OVR::OvrvisionPro*g_ovOvrvision)
+{
+	return new OVR::OvrvisionTracking(g_ovOvrvision->GetCamWidth(),
+		g_ovOvrvision->GetCamHeight(), g_ovOvrvision->GetCamFocalPoint());
+}
+
+CSHARP_EXPORT void ovTrackDestroy(OVR::OvrvisionTracking* ar)
+{
+	delete ar;
+}
+// ovTrackRender
+CSHARP_EXPORT void ovTrackRender(OVR::OvrvisionTracking*g_ovOvrvisionTrack, OVR::OvrvisionPro*g_ovOvrvision,bool calib, bool point)
+{
+	if (g_ovOvrvisionTrack == NULL)
+		return;
+
+	unsigned char* pLeft = g_ovOvrvision->GetCamImageBGRA(OVR::OV_CAMEYE_LEFT);
+	unsigned char* pRight = g_ovOvrvision->GetCamImageBGRA(OVR::OV_CAMEYE_RIGHT);
+	g_ovOvrvisionTrack->SetImageBGRA(pLeft, pRight);
+
+	g_ovOvrvisionTrack->Render(calib, point);
+}
+
+CSHARP_EXPORT int ovGetTrackData(OVR::OvrvisionTracking*g_ovOvrvisionTrack,float* mdata)
+{
+	if (g_ovOvrvisionTrack == NULL)
+		return 0;
+
+	if (mdata == NULL)
+		return (-1);
+
+	mdata[0] = g_ovOvrvisionTrack->FingerPosX();
+	mdata[1] = g_ovOvrvisionTrack->FingerPosY();
+	mdata[2] = g_ovOvrvisionTrack->FingerPosZ();
+
+	if (mdata[2] <= 0.0f || mdata[2] >= 1.0f)	//z0.0~1.0
+		return 0;
+
+	return 1;
+}
+
+CSHARP_EXPORT void ovTrackingCalibReset(OVR::OvrvisionTracking*g_ovOvrvisionTrack)
+{
+	if (g_ovOvrvisionTrack == NULL)
+		return;
+
+	g_ovOvrvisionTrack->SetHue();
+}
+
 ////////////// Ovrvision AR //////////////
 /*
 // void ovARRender(void)
