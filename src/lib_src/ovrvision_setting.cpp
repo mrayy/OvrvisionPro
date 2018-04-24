@@ -37,6 +37,7 @@ OvrvisionSetting::OvrvisionSetting(OvrvisionPro* system_ptr)
 void OvrvisionSetting::InitValue()
 {
 	isReaded = false;
+	m_pixelSize = cv::Size(1280.0, 960.0);
 
 	//initialize Camera Setting
 	m_propExposure = 7808;		//Exposure
@@ -62,7 +63,7 @@ void OvrvisionSetting::InitValue()
 	m_trans = (cv::Mat_<double>(1,3)
 		<< -6.1249914523852240e+001, 7.5758816805225948e-001, 1.6870717314641153e+000);
 	m_focalPoint = (cv::Mat_<float>(1, 1)
-		<< 428.0f);
+		<< 2.5f);
 }
 
 

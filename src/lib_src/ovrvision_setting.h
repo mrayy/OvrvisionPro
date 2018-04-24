@@ -85,6 +85,8 @@ public:
 
 	cv::String settingString;
 
+	cv::Size m_pixelSize;
+
 	//Var
 	//OK
 	bool isReaded;
