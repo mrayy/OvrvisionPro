@@ -21,3 +21,10 @@ build/windows_vs2013_new/ovrvision.sdf
 build/windows_vs2013_new/ovrvision.sdf
 build/windows_vs2013_new/ovrvision/*
 build/windows_vs2013_new/ovrvision.sdf
+*.ipch
+*.cache
+*.opendb
+*.db
+*.db-wal
+*.ide
+*.db-shm
