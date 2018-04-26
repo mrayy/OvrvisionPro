@@ -86,10 +86,9 @@ namespace OVR
 
 	// Scaling
 	enum SCALING {
-		ORIGINAL,	// 1/1
-		HALF,		// 1/2
-		FOURTH,		// 1/4
-		EIGHTH		// 1/8
+		HALF,	// 1/2
+		FOURTH,	// 1/4
+		EIGHTH	// 1/8
 	};
 
 	// Extension vendor 

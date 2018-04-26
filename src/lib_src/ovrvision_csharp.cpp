@@ -122,7 +122,7 @@ CSHARP_EXPORT OVR::OvrvisionPro* ovCreateInstance()
 }
 
 // int ovOpen(void)
-CSHARP_EXPORT int ovOpen(OVR::OvrvisionPro*g_ovOvrvision, int locationID, float arMeter, int type)
+CSHARP_EXPORT int ovOpen(OVR::OvrvisionPro*g_ovOvrvision, int locationID, int type)
 {
 	//Create object
 	if (g_ovOvrvision == NULL)
@@ -603,6 +603,37 @@ CSHARP_EXPORT void ovARRender(OVR::OvrvisionAR* g_ovOvrvisionAR,OVR::OvrvisionPr
 }
 
 // int ovARGetData(float* mdata, int datasize) : mdata*FLOATDATA_DATA_OFFSET(10)
+CSHARP_EXPORT bool ovARGetMarkerData(OVR::OvrvisionAR* g_ovOvrvisionAR, int id,float* mdata)
+{
+
+	int i;
+	if (g_ovOvrvisionAR == NULL)
+		return false;
+	if (mdata == NULL)	
+		return false;
+
+
+	int marklen = g_ovOvrvisionAR->GetMarkerDataSize();
+	OVR::OvMarkerData* dt = g_ovOvrvisionAR->GetMarkerData();
+
+	for (i = 0; i < marklen; i++)
+	{
+		if (dt[i].id != id)
+			continue;
+		mdata[0] = dt[i].translate.x;
+		mdata[1] = dt[i].translate.y;
+		mdata[2] = dt[i].translate.z;
+		mdata[3] = dt[i].quaternion.x;
+		mdata[4] = dt[i].quaternion.y;
+		mdata[5] = dt[i].quaternion.z;
+		mdata[6] = dt[i].quaternion.w;
+		mdata[7] = dt[i].centerPtOfImage.x;
+		mdata[8] = dt[i].centerPtOfImage.y;
+		return true;
+	}
+	return false;
+
+}
 CSHARP_EXPORT int ovARGetData( OVR::OvrvisionAR* g_ovOvrvisionAR,float* mdata, int datasize)
 {
 	int i;

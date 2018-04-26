@@ -14,7 +14,6 @@
 
 #include <stdio.h>
 #include <sys/stat.h>
-#include <opencv2/opencv.hpp>
 #include <stdexcept>
 
 #include "OvrvisionProCL.h"
@@ -620,7 +619,7 @@ namespace OVR
 					char buffer[32];
 					if (clGetDeviceInfo(id[j], CL_DEVICE_OPENCL_C_VERSION, sizeof(buffer), buffer, &length) == CL_SUCCESS)
 					{
-						char devicename[128];
+						char devicename[80];
 						cl_uint freq, units;
 						clGetDeviceInfo(id[j], CL_DEVICE_MAX_CLOCK_FREQUENCY, sizeof(cl_uint), &freq, &length);
 						clGetDeviceInfo(id[j], CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(cl_uint), &units, &length);
@@ -635,13 +634,12 @@ namespace OVR
 								maxFreq = freq;
 								maxUnits = units;
 								device_found = true;
-
-								//NVIDIA or AMD priority
-								clGetPlatformInfo(_platformId, CL_PLATFORM_NAME, sizeof(devicename), devicename, NULL);
-								if (strstr(devicename, "NVIDIA") != NULL) maxFreq *= 100;
-								if (strstr(devicename, "Advanced Micro Devices") != NULL) maxFreq *= 100;
-								if (strstr(devicename, "AMD") != NULL) maxFreq *= 100;
 							}
+						}
+						else
+						{
+							//clGetDeviceInfo(_deviceId, CL_DEVICE_NAME, sizeof(buffer), buffer, NULL);
+							printf("%d Compute units %dMHz : %s\n", units, freq, buffer);
 						}
 					}
 				}
@@ -733,7 +731,7 @@ namespace OVR
 				{
 					cl_device_type t;
 					clGetDeviceInfo(devices[k], CL_DEVICE_TYPE, sizeof(t), &t, NULL);
-					if (t == CL_DEVICE_TYPE_GPU)
+					//if (t == CL_DEVICE_TYPE_GPU)
 					{
 						clGetDeviceInfo(devices[k], CL_DEVICE_NAME, sizeof(devicename), devicename, NULL);
 						char buffer[32];
@@ -1933,13 +1931,9 @@ namespace OVR
 		clGetImageInfo(src, CL_IMAGE_WIDTH, sizeof(width), &width, NULL);
 		clGetImageInfo(src, CL_IMAGE_HEIGHT, sizeof(height), &height, NULL);
 
-		int scale = 1;
+		int scale = 2;
 		switch (scaling)
 		{
-		case ORIGINAL:
-			scale = 1;
-			break;
-
 		case HALF:
 			scale = 2;
 			break;
@@ -2013,10 +2007,6 @@ namespace OVR
 			uint width = _width, height = _height;
 			switch (scaling)
 			{
-			case OVR::ORIGINAL:
-				width /= 1;
-				height /= 1;
-				break;
 			case OVR::HALF:
 				width /= 2;
 				height /= 2;
@@ -2044,6 +2034,7 @@ namespace OVR
 			cl_event event[2];
 			Resize(_l, l, scaling, &event[0]);
 			Resize(_r, r, scaling, &event[1]);
+
 			// Convert to HSV
 			//__kernel void convertGrayscale( 
 			//		__read_only image2d_t src,	// CL_UNSIGNED_INT8 x 4
@@ -2072,10 +2063,6 @@ namespace OVR
 		uint width = _width, height = _height;
 		switch (scaling)
 		{
-		case OVR::ORIGINAL:
-			width /= 1;
-			height /= 1;
-			break;
 		case OVR::HALF:
 			width /= 2;
 			height /= 2;

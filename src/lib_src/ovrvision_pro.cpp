@@ -778,37 +778,37 @@ void OvrvisionPro::SetCallbackImageFunction(void(*func)(void*), void*ud)
 //Private method
 void OvrvisionPro::InitCameraSetting()
 {
+	if (m_isMemory)
+		return;
 	//Read files.
 	if (ovrset->ReadEEPROM()) {
 
-		if (!m_isMemory)
-		{
-			//Read Set
-			SetCameraExposure(ovrset->m_propExposure);
-			SetCameraGain(ovrset->m_propGain);
-			SetCameraBLC(ovrset->m_propBLC);
-			SetCameraWhiteBalanceAuto((bool)ovrset->m_propWhiteBalanceAuto);
-			if (ovrset->m_propWhiteBalanceAuto == 0) {
-				SetCameraWhiteBalanceR(ovrset->m_propWhiteBalanceR);
-				SetCameraWhiteBalanceG(ovrset->m_propWhiteBalanceG);
-				SetCameraWhiteBalanceB(ovrset->m_propWhiteBalanceB);
-			}
-
-			//50ms wait
-#if defined(WIN32)
-			Sleep(50);
-#elif defined(MACOSX)
-			[NSThread sleepForTimeInterval:0.05];
-#elif defined(LINUX)
-			usleep(50000);
-#endif
+		//Read Set
+		SetCameraExposure(ovrset->m_propExposure);
+		SetCameraGain(ovrset->m_propGain);
+		SetCameraBLC(ovrset->m_propBLC);
+		SetCameraWhiteBalanceAuto((bool)ovrset->m_propWhiteBalanceAuto);
+		if (ovrset->m_propWhiteBalanceAuto == 0) {
+			SetCameraWhiteBalanceR(ovrset->m_propWhiteBalanceR);
+			SetCameraWhiteBalanceG(ovrset->m_propWhiteBalanceG);
+			SetCameraWhiteBalanceB(ovrset->m_propWhiteBalanceB);
 		}
+
+		//50ms wait
+#if defined(WIN32)
+		Sleep(50);
+#elif defined(MACOSX)
+		[NSThread sleepForTimeInterval:0.05];
+#elif defined(LINUX)
+		usleep(50000);
+#endif
+
 	}
+	ovrset->m_focalPoint.at<float>(0) *= ((ovrset->m_pixelSize.width / SensorSizeWidth) * SensorSizeScale);
 	m_focalpoint = ovrset->m_focalPoint.at<float>(0);
 	m_rightgap[0] = (float)-ovrset->m_trans.at<double>(0);	//T:X
 	m_rightgap[1] = (float)ovrset->m_trans.at<double>(1);	//T:Y
 	m_rightgap[2] = (float)ovrset->m_trans.at<double>(2);	//T:Z
-
 	if (m_pOpenCL)
 		m_pOpenCL->LoadCameraParams(ovrset);
 }
@@ -1290,6 +1290,7 @@ std::string  OvrvisionPro::GetOVRSettings()
 void OvrvisionPro::SetOVRSettings(const std::string& str)
 {
 	ovrset->SetSettingString(str);
+	ovrset->m_focalPoint.at<float>(0) *= ((ovrset->m_pixelSize.width / SensorSizeWidth) * SensorSizeScale);
 	m_focalpoint = ovrset->m_focalPoint.at<float>(0);
 	m_rightgap[0] = (float)-ovrset->m_trans.at<double>(0);	//T:X
 	m_rightgap[1] = (float)ovrset->m_trans.at<double>(1);	//T:Y
