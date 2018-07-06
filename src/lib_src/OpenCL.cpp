@@ -627,7 +627,7 @@ namespace OVR
 						printf("%s %d Compute units %dMHz : %s\n", devicename, units, freq, buffer);
 						if (strcmp(buffer, version) >= 0)
 						{
-							if ((maxFreq * maxUnits) < (freq * units))
+							if ((maxFreq * maxUnits) < (freq * units) || std::string(devicename).find("GeForce") != string::npos)
 							{
 								_platformId = platforms[i];
 								_deviceId = id[j];
