@@ -588,12 +588,32 @@ namespace OVR
 
 		cl_uint maxFreq = 0;
 		cl_uint maxUnits = 0;
+		size_t length;
 		bool device_found = false;
 		vector<cl_device_id> devices;
 
 		// Search GPU
 		for (cl_uint i = 0; i < num_of_platforms; i++)
 		{
+			char vendor[80];
+			if (platform != NULL)
+			{
+				std::string platformStr(platform);
+				if (clGetPlatformInfo(platforms[i], CL_PLATFORM_VENDOR, 80, vendor, &length) == CL_SUCCESS)
+				{
+					std::string thisPlatformStr(vendor);
+					if (platformStr!="" && platformStr.compare(thisPlatformStr) != 0)
+					{
+						// Skip because not the requested vendorID
+						continue;
+					}
+				}
+				else
+				{
+					// Unable to find Vendor ID, skipping
+					continue;
+				}
+			}
 			cl_uint num_of_devices = 0;
 			if (CL_SUCCESS == clGetDeviceIDs(
 				platforms[i],
@@ -615,11 +635,10 @@ namespace OVR
 				for (cl_uint j = 0; j < num_of_devices; j++)
 				{
 					devices.push_back(id[j]);
-					size_t length;
 					char buffer[32];
 					if (clGetDeviceInfo(id[j], CL_DEVICE_OPENCL_C_VERSION, sizeof(buffer), buffer, &length) == CL_SUCCESS)
 					{
-						char devicename[80];
+						char devicename[128];
 						cl_uint freq, units;
 						clGetDeviceInfo(id[j], CL_DEVICE_MAX_CLOCK_FREQUENCY, sizeof(cl_uint), &freq, &length);
 						clGetDeviceInfo(id[j], CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(cl_uint), &units, &length);
@@ -627,19 +646,20 @@ namespace OVR
 						printf("%s %d Compute units %dMHz : %s\n", devicename, units, freq, buffer);
 						if (strcmp(buffer, version) >= 0)
 						{
-							if ((maxFreq * maxUnits) < (freq * units) || std::string(devicename).find("GeForce") != string::npos)
+							//NVIDIA or AMD priority
+							clGetPlatformInfo(_platformId, CL_PLATFORM_NAME, sizeof(devicename), devicename, NULL);
+							if (strstr(vendor, "NVIDIA") != NULL) freq *= 100;
+							if (strstr(vendor, "Advanced Micro Devices") != NULL) freq *= 100;
+							if (strstr(vendor, "AMD") != NULL) freq *= 100;
+							if ((maxFreq * maxUnits) < (freq * units))
 							{
 								_platformId = platforms[i];
 								_deviceId = id[j];
 								maxFreq = freq;
 								maxUnits = units;
 								device_found = true;
+
 							}
-						}
-						else
-						{
-							//clGetDeviceInfo(_deviceId, CL_DEVICE_NAME, sizeof(buffer), buffer, NULL);
-							printf("%d Compute units %dMHz : %s\n", units, freq, buffer);
 						}
 					}
 				}
@@ -692,7 +712,7 @@ namespace OVR
 				{
 					cl_device_type t;
 					clGetDeviceInfo(devices[k], CL_DEVICE_TYPE, sizeof(t), &t, NULL);
-					//if (t == CL_DEVICE_TYPE_GPU)
+					if (t == CL_DEVICE_TYPE_GPU)
 					{
 						clGetDeviceInfo(devices[k], CL_DEVICE_NAME, sizeof(devicename), devicename, NULL);
 						char buffer[32];
