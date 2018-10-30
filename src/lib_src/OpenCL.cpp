@@ -573,9 +573,19 @@ namespace OVR
 		}
 	}
 
+
+	static bool s_selected = false;
+	static cl_device_id s_device;
+	static cl_platform_id s_platformId;
 	// Select GPU device
 	cl_device_id OvrvisionProOpenCL::SelectGPU(const char *platform, const char *version)
 	{
+		if (s_selected)
+		{
+			_deviceId = s_device;
+			_platformId = s_platformId;
+			return _deviceId;
+		}
 		cl_uint num_of_platforms = 0;
 		// get total number of available platforms:
 		cl_int err = clGetPlatformIDs(0, 0, &num_of_platforms);
@@ -670,6 +680,9 @@ namespace OVR
 		{
 			throw std::runtime_error("GPU NOT FOUND.\nRequired OpenCL 1.2 or above.\n");
 		}
+		s_selected = true;
+		s_device= _deviceId;
+		s_platformId = _platformId;
 		return _deviceId;
 	}
 
